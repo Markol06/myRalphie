@@ -13,6 +13,7 @@ def ensure_claude_scaffold(project_root: Path) -> list[Path]:
     created: list[Path] = []
 
     _remove_legacy_command_files(project_root)
+    _remove_legacy_prompt_files(project_root)
 
     ralph_dir = project_root / ".ralph"
     prompts_dir = ralph_dir / "prompts"
@@ -22,11 +23,6 @@ def ensure_claude_scaffold(project_root: Path) -> list[Path]:
     if not interview_prompt.exists():
         interview_prompt.write_text(_interview_prompt_text(), encoding="utf-8")
         created.append(interview_prompt)
-
-    next_story_prompt = prompts_dir / "next_story.md"
-    if not next_story_prompt.exists():
-        next_story_prompt.write_text(_next_story_prompt_text(), encoding="utf-8")
-        created.append(next_story_prompt)
 
     bootstrap_prompt = prompts_dir / "bootstrap_message.txt"
     if not bootstrap_prompt.exists():
@@ -46,6 +42,12 @@ def _remove_legacy_command_files(project_root: Path) -> None:
         path = commands_dir / name
         if path.exists():
             path.unlink()
+
+
+def _remove_legacy_prompt_files(project_root: Path) -> None:
+    path = project_root / ".ralph" / "prompts" / "next_story.md"
+    if path.exists():
+        path.unlink()
 
 
 def _upsert_claude_md(path: Path) -> bool:
@@ -88,11 +90,7 @@ When the user describes a new feature, project, refactor, or automation idea and
   - `.ralphrc`
 - Keep stories small enough to complete in one implementation session per story.
 
-When `.ralph/prd.json` already exists and the user asks you to continue Ralph or implement the next story:
-
-- Read `.ralph/prompts/next_story.md`.
-- Read `.ralph/prd.json`, `.ralph/progress.txt`, and `.ralph/AGENT.md`.
-- Implement only the first story where `passes` is `false` and `failed` is `false`.
+- After writing interview outputs, tell the user to start the autonomous loop with `ralph run`.
 
 If the user explicitly asks for the autonomous external Ralph loop, the shell commands are still available via the installed `ralph` CLI.
 {RALPH_CLAUDE_SECTION_END}"""
@@ -209,39 +207,4 @@ Required outputs:
 When done:
 - summarize the final plan briefly
 - stop asking questions
-"""
-
-
-def _next_story_prompt_text() -> str:
-    return """# Ralph Next Story Flow
-
-Continue Ralph manually inside the current Claude Code session.
-
-Workflow:
-1. Read `.ralph/prd.json`, `.ralph/progress.txt`, and `.ralph/AGENT.md`.
-2. Pick the first story where `passes` is false and `failed` is false.
-3. Implement only that story.
-4. Run the commands from `.ralph/AGENT.md` or `.ralphrc`:
-   - test
-   - lint, if configured
-   - build, if configured and relevant
-5. If checks pass:
-   - commit with `git commit -m "ralph: <story_id> - <story_title>"`
-   - update `.ralph/prd.json`:
-     - `passes: true`
-     - `commit`: current commit hash
-     - `branch`: current branch name
-   - append a short learning entry to `.ralph/progress.txt`
-   - update `.ralph/AGENT.md` if you discovered durable conventions
-6. If checks fail:
-   - do not mark the story as passed
-   - increment retries in `.ralph/prd.json`
-   - append a failure note to `.ralph/progress.txt`
-   - explain the blocker clearly
-
-Rules:
-- keep diffs small
-- do not modify unrelated stories
-- do not skip checks unless the repository truly has no runnable checks and that is already documented
-- if the next story is too large, stop and say it should be split first
 """

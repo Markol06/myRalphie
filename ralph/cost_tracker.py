@@ -69,3 +69,22 @@ def total_cost(log_path: Path) -> float:
             except ValueError:
                 pass
     return total
+
+
+def total_tokens(log_path: Path) -> tuple[int, int]:
+    if not log_path.exists():
+        return 0, 0
+    total_in = 0
+    total_out = 0
+    with open(log_path) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                total_in += int(row.get("input_tokens", 0) or 0)
+            except ValueError:
+                pass
+            try:
+                total_out += int(row.get("output_tokens", 0) or 0)
+            except ValueError:
+                pass
+    return total_in, total_out

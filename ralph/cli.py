@@ -33,7 +33,7 @@ def _require_ralph_dir(project_root: Path) -> Path:
     if not ralph_dir.exists():
         console.print(
             "[red]No .ralph/ directory found.[/red]\n"
-            "Run [bold]ralph interview[/bold] first."
+            "Run [bold]ralph init[/bold] first."
         )
         sys.exit(1)
     return ralph_dir
@@ -50,15 +50,14 @@ def main():
 @main.command()
 @click.option("--project", "-p", default=None, help="Path to project root (default: cwd)")
 @click.option("--dry-run", is_flag=True, help="Simulate without running claude")
-@click.option("--spawn-claude", is_flag=True, help="Launch external Claude CLI instead of using Claude-native project instructions")
-def interview(project, dry_run, spawn_claude):
+def interview(project, dry_run):
     """Run the interview phase to generate prd.json from a conversation."""
     from .interview import run_interview
 
     project_root = _resolve_project(project)
     console.print(f"[dim]Project root: {project_root}[/dim]")
 
-    success = run_interview(project_root, dry_run=dry_run, spawn_claude=spawn_claude)
+    success = run_interview(project_root, dry_run=dry_run)
     sys.exit(0 if success else 1)
 
 
@@ -129,6 +128,7 @@ def status(project):
     prd = PRD.load(prd_path)
     session = Session.load(session_path)
     total_cost = cost_tracker.total_cost(cost_log_path)
+    total_in, total_out = cost_tracker.total_tokens(cost_log_path)
     stats = prd.stats()
 
     # Header
@@ -144,6 +144,7 @@ def status(project):
         session_table.add_row("Paused reason", session.pause_reason)
     session_table.add_row("Chunk", str(session.chunk_number))
     session_table.add_row("Total iterations", str(session.total_iterations))
+    session_table.add_row("Tokens", f"in {total_in} / out {total_out}")
     session_table.add_row("Total cost", f"${total_cost:.4f}")
     console.print(session_table)
     console.print()

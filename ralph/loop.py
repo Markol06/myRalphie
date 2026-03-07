@@ -7,7 +7,6 @@ from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from .config import RalphConfig
@@ -17,8 +16,8 @@ from .circuit_breaker import CircuitBreaker
 from . import progress as prog
 from . import cost_tracker
 from .executor import (
-    run_claude, run_command, git_current_commit,
-    git_create_branch, git_checkout, git_commit_message,
+    run_claude, git_current_commit,
+    git_create_branch, git_checkout,
 )
 from .notifier import notify
 from . import logger as iteration_logger
@@ -94,13 +93,16 @@ def _build_iteration_prompt(
 
 def _print_stats(prd: PRD, session: Session, config: RalphConfig, project_root: Path) -> None:
     stats = prd.stats()
-    total_cost = cost_tracker.total_cost(project_root / ".ralph" / "cost.log")
+    cost_log_path = project_root / ".ralph" / "cost.log"
+    total_cost = cost_tracker.total_cost(cost_log_path)
+    total_in, total_out = cost_tracker.total_tokens(cost_log_path)
 
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_row("Chunk", f"{session.chunk_number}")
     table.add_row("Iteration in chunk", f"{session.iteration_in_chunk}/{config.chunk_size}")
     table.add_row("Total iterations", f"{session.total_iterations}")
     table.add_row("Stories", f"✅ {stats['done']}  ❌ {stats['failed']}  ⏳ {stats['pending']}  / {stats['total']}")
+    table.add_row("Tokens", f"in {total_in} · out {total_out}")
     table.add_row("Total cost", f"${total_cost:.4f}")
 
     console.print(Panel(table, title="📊 Ralph Status", border_style="blue"))
@@ -212,6 +214,12 @@ def run_loop(
         # Cost tracking
         cost_data = cost_tracker.parse_cost(output)
         session.total_cost_usd += cost_data["cost_usd"]
+        console.print(
+            "  [dim]Usage: "
+            f"in {cost_data.get('input_tokens', 0)} · "
+            f"out {cost_data.get('output_tokens', 0)} · "
+            f"cost ${cost_data.get('cost_usd', 0.0):.4f}[/dim]"
+        )
 
         if status is None:
             # Claude didn't output RALPH_STATUS — treat as failure
@@ -283,8 +291,8 @@ def run_loop(
                     f"Last error: {failure_summary}\n\n"
                     "Options:\n"
                     "  1. Fix manually, then run [bold]ralph run --resume[/bold]\n"
-                    "  2. Skip this story: [bold]ralph skip {story.id}[/bold]\n"
-                    "  3. Mark failed: [bold]ralph fail {story.id}[/bold]"
+                    f"  2. Skip this story: [bold]ralph skip {story.id}[/bold]\n"
+                    f"  3. Retry from scratch: [bold]ralph retry {story.id}[/bold]"
                 )
                 console.print(Panel(msg, title="⏸  Waiting for you", border_style="yellow"))
                 session.status = "paused"
