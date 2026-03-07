@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import subprocess
 import time
+import sys
+import shutil
 from pathlib import Path
 from dataclasses import dataclass
 
@@ -30,7 +32,7 @@ def run_claude(
     timeout_seconds: int = 900,
     dry_run: bool = False,
 ) -> ExecutionResult:
-    """Spawn a new claude --dangerously-skip-permissions instance."""
+    """Spawn a fresh non-interactive Claude Code instance."""
 
     if dry_run:
         print(f"\n  [DRY RUN] Would run claude with prompt:\n{prompt[:300]}...\n")
@@ -38,15 +40,22 @@ def run_claude(
 
     tools_str = ",".join(allowed_tools)
 
+    if sys.platform.startswith("win"):
+        claude_bin = shutil.which("claude.cmd") or shutil.which("claude") or "claude.cmd"
+    else:
+        claude_bin = shutil.which("claude") or "claude"
+
     cmd = [
-        "claude",
-        "--dangerously-skip-permissions",
-        "--allowedTools", tools_str,
-        "--print",           # non-interactive, print output and exit
+        claude_bin,
+        "-p",
         "--output-format", "text",
-        "--max-turns", "50",
-        prompt,
+        "--permission-mode", "bypassPermissions",
+        "--dangerously-skip-permissions",
+        "--no-session-persistence",
+        "--add-dir", str(project_root),
     ]
+    if tools_str:
+        cmd.extend(["--allowed-tools", tools_str])
 
     start = time.time()
     timed_out = False
@@ -57,6 +66,9 @@ def run_claude(
             cwd=project_root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
+            input=prompt,
             timeout=timeout_seconds,
         )
         duration = time.time() - start

@@ -310,7 +310,7 @@ def run_loop(
                     project_root / ".ralph" / "progress.txt",
                     story.id, story.title,
                     f"❌ FAILED attempt {retry_count}\nError: {failure_summary}\n"
-                    f"Test output:\n{status.get('test_output', error_snippet)[:500]}",
+                    f"Test output:\n{(status.get('test_output', '') if status else error_snippet)[:500]}",
                 )
 
         # Advance counters

@@ -14,20 +14,20 @@ HEADER = """# Ralph Progress Log
 
 def init(path: Path) -> None:
     if not path.exists():
-        path.write_text(HEADER)
+        path.write_text(HEADER, encoding="utf-8")
 
 
 def append(path: Path, story_id: str, story_title: str, content: str) -> None:
     ts = datetime.now().strftime("%Y-%m-%d %H:%M")
     entry = f"\n## [{ts}] Story {story_id}: {story_title}\n{content.strip()}\n"
-    with open(path, "a") as f:
+    with open(path, "a", encoding="utf-8") as f:
         f.write(entry)
 
 
 def read(path: Path) -> str:
     if not path.exists():
         return ""
-    return path.read_text()
+    return path.read_text(encoding="utf-8")
 
 
 def read_recent(path: Path, max_chars: int = 6000) -> str:

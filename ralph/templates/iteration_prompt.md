@@ -92,3 +92,5 @@ RALPH_STATUS:
 - `result: PASS` + `exit_signal: true` → you completed the story successfully
 - `result: FAIL` + `exit_signal: false` → tests still failing, Ralph will handle retry/stop
 - Never output `exit_signal: true` if tests are failing
+- Do not ask follow-up questions to the user in this mode; make reasonable assumptions and continue implementation.
+- If blocked, output `result: FAIL` with `exit_signal: false` and include the concrete blocker in `summary`.
