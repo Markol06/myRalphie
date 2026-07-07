@@ -368,7 +368,6 @@ def reset_circuit(project):
     project_root = _resolve_project(project)
     ralph_dir = _require_ralph_dir(project_root)
     from .circuit_breaker import CircuitBreaker
-    config = RalphConfig.load(project_root)
     cb = CircuitBreaker(ralph_dir / "circuit_state.json", project_root)
     cb.reset()
     console.print("[green]Circuit breaker reset.[/green]")
