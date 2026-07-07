@@ -34,11 +34,15 @@ _TEST_OUTPUT_RE = re.compile(r"test_output:\s*(.+?)$", re.DOTALL | re.IGNORECASE
 
 
 def _parse_ralph_status(output: str) -> dict | None:
-    m = _STATUS_RE.search(output)
-    if not m:
+    # Take the LAST match: Claude may quote the status format earlier in the
+    # output, but the real block is emitted at the end.
+    matches = list(_STATUS_RE.finditer(output))
+    if not matches:
         return None
-    learnings_m = _LEARNINGS_RE.search(output)
-    test_m = _TEST_OUTPUT_RE.search(output)
+    m = matches[-1]
+    tail = output[m.start():]
+    learnings_m = _LEARNINGS_RE.search(tail)
+    test_m = _TEST_OUTPUT_RE.search(tail)
     return {
         "story_id": m.group(1).strip(),
         "result": m.group(2).strip().upper(),
