@@ -248,6 +248,8 @@ def run_loop(
             project_root=project_root,
             timeout_seconds=config.claude_timeout,
             dry_run=config.dry_run,
+            model=config.model,
+            max_turns=config.max_turns,
         )
 
         output = result.combined_output()

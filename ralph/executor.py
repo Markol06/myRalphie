@@ -77,6 +77,8 @@ def run_claude(
     project_root: Path,
     timeout_seconds: int = 900,
     dry_run: bool = False,
+    model: str = "",
+    max_turns: int = 0,
 ) -> ExecutionResult:
     """Spawn a fresh non-interactive Claude Code instance (stream-json output).
 
@@ -103,6 +105,10 @@ def run_claude(
         "--no-session-persistence",
         "--add-dir", str(project_root),
     ]
+    if model:
+        cmd.extend(["--model", model])
+    if max_turns > 0:
+        cmd.extend(["--max-turns", str(max_turns)])
 
     start = time.time()
     transcript: list[str] = []

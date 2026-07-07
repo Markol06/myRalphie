@@ -13,6 +13,10 @@ class RalphConfig:
     max_retries: int = 3          # retries per failing story
     claude_timeout: int = 900     # seconds per claude instance (15 min)
 
+    # Claude instance
+    model: str = ""               # e.g. "claude-sonnet-5"; empty = account default
+    max_turns: int = 0            # cap agent turns per iteration; 0 = unlimited
+
     # Circuit breaker
     cb_no_progress_threshold: int = 3   # stop after N iters with no git change
     cb_same_error_threshold: int = 5    # stop after N iters with same error
