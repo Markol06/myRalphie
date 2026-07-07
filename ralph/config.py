@@ -2,8 +2,16 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, asdict
 from pathlib import Path
+
+# Secrets are preferably taken from the environment, not .ralphrc
+_ENV_OVERRIDES = {
+    "telegram_token": "RALPH_TELEGRAM_TOKEN",
+    "telegram_chat_id": "RALPH_TELEGRAM_CHAT_ID",
+    "discord_webhook": "RALPH_DISCORD_WEBHOOK",
+}
 
 
 @dataclass
@@ -41,13 +49,21 @@ class RalphConfig:
     @classmethod
     def load(cls, project_root: Path) -> "RalphConfig":
         rc_file = project_root / ".ralphrc"
-        if not rc_file.exists():
-            return cls()
-        with open(rc_file) as f:
-            data = json.load(f)
-        # merge: only known fields
-        known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
-        return cls(**known)
+        if rc_file.exists():
+            with open(rc_file) as f:
+                data = json.load(f)
+            # merge: only known fields
+            known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
+            config = cls(**known)
+        else:
+            config = cls()
+
+        # env vars win over .ralphrc for secrets
+        for attr, env_name in _ENV_OVERRIDES.items():
+            value = os.environ.get(env_name)
+            if value:
+                setattr(config, attr, value)
+        return config
 
     def save(self, project_root: Path) -> None:
         rc_file = project_root / ".ralphrc"
