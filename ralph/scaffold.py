@@ -33,7 +33,30 @@ def ensure_claude_scaffold(project_root: Path) -> list[Path]:
     if _upsert_claude_md(claude_md):
         created.append(claude_md)
 
+    gitignore = project_root / ".gitignore"
+    if _ensure_gitignore(gitignore):
+        created.append(gitignore)
+
     return created
+
+
+def _ensure_gitignore(path: Path) -> bool:
+    """Keep Ralph local state (incl. .ralphrc with tokens) out of the repo."""
+    entries = [".ralph/", ".ralphrc"]
+    if path.exists():
+        text = path.read_text(encoding="utf-8")
+        present = {line.strip().rstrip("/") for line in text.splitlines()}
+        missing = [e for e in entries if e.rstrip("/") not in present]
+        if not missing:
+            return False
+        sep = "" if text.endswith("\n") or not text else "\n"
+        path.write_text(
+            text + sep + "\n# Ralph local state\n" + "\n".join(missing) + "\n",
+            encoding="utf-8",
+        )
+        return True
+    path.write_text("# Ralph local state\n" + "\n".join(entries) + "\n", encoding="utf-8")
+    return True
 
 
 def _remove_legacy_command_files(project_root: Path) -> None:
