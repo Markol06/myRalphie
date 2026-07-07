@@ -341,6 +341,8 @@ def run_loop(
                 failure_summary = "No RALPH_STATUS"
 
             retry_count = prd.increment_retry(story.id)
+            # Persist the reason so the next iteration sees it as retry_notes
+            story.notes = f"attempt {retry_count}: {failure_summary}"[:500]
             # Use the summary for same-error detection: raw output tails are
             # full of timestamps/paths and never compare equal
             cb.record_failure(failure_summary)
