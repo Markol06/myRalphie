@@ -75,17 +75,18 @@ def _handle_stream_line(line: str, transcript: list[str], final: dict) -> None:
 def run_claude(
     prompt: str,
     project_root: Path,
-    allowed_tools: list[str],
     timeout_seconds: int = 900,
     dry_run: bool = False,
 ) -> ExecutionResult:
-    """Spawn a fresh non-interactive Claude Code instance (stream-json output)."""
+    """Spawn a fresh non-interactive Claude Code instance (stream-json output).
+
+    Runs with full tool access (bypassPermissions) — an allowlist would be
+    ignored in this mode anyway, so we don't pretend to have one.
+    """
 
     if dry_run:
         print(f"\n  [DRY RUN] Would run claude with prompt:\n{prompt[:300]}...\n")
         return ExecutionResult(returncode=0, stdout="[dry-run]", stderr="", duration_seconds=0)
-
-    tools_str = ",".join(allowed_tools)
 
     if sys.platform.startswith("win"):
         claude_bin = shutil.which("claude.cmd") or shutil.which("claude") or "claude.cmd"
@@ -102,8 +103,6 @@ def run_claude(
         "--no-session-persistence",
         "--add-dir", str(project_root),
     ]
-    if tools_str:
-        cmd.extend(["--allowed-tools", tools_str])
 
     start = time.time()
     transcript: list[str] = []
