@@ -35,8 +35,8 @@ class RalphConfig:
     telegram_token: str = ""
     telegram_chat_id: str = ""
 
-    # Branch strategy
-    branch_per_task: bool = True
+    # Branch strategy — trunk-based: the whole run happens on prd.branch_name,
+    # created from base_branch if it doesn't exist yet
     base_branch: str = "main"
 
     # Dry run

@@ -199,7 +199,6 @@ Required outputs:
   "test_command": "...",
   "lint_command": "...",
   "build_command": "...",
-  "branch_per_task": true,
   "base_branch": "main"
 }
 ```
