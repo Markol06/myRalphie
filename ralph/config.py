@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 from pathlib import Path
 
 
@@ -21,14 +21,6 @@ class RalphConfig:
     test_command: str = ""
     lint_command: str = ""
     build_command: str = ""
-
-    # Allowed claude tools
-    allowed_tools: list[str] = field(default_factory=lambda: [
-        "Write", "Read", "Edit", "MultiEdit",
-        "Bash(git *)", "Bash(pytest *)", "Bash(python *)",
-        "Bash(npm *)", "Bash(yarn *)", "Bash(pnpm *)",
-        "Bash(make *)", "Bash(cargo *)",
-    ])
 
     # Notifications
     discord_webhook: str = ""

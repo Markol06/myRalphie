@@ -246,7 +246,6 @@ def run_loop(
         result = run_claude(
             prompt=prompt,
             project_root=project_root,
-            allowed_tools=config.allowed_tools,
             timeout_seconds=config.claude_timeout,
             dry_run=config.dry_run,
         )
