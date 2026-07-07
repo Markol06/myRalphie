@@ -16,7 +16,7 @@ from .circuit_breaker import CircuitBreaker
 from . import progress as prog
 from . import cost_tracker
 from .executor import (
-    run_claude, git_current_commit,
+    run_claude, run_command, git_current_commit,
     git_create_branch, git_checkout,
 )
 from .notifier import notify
@@ -93,6 +93,29 @@ def _build_iteration_prompt(
         f"## AGENT.md\n{agent_text}\n\n"
         f"---\n\n{prompt}"
     )
+
+
+VERIFY_TEST_TIMEOUT = 600  # seconds for the independent test run after a claimed PASS
+
+
+def _verify_pass(
+    project_root: Path, config: RalphConfig, commit_before: str
+) -> tuple[bool, str]:
+    """Independently verify a claimed PASS: new commit exists, tests pass."""
+    commit_after = git_current_commit(project_root)
+    if commit_after == commit_before:
+        return False, "claimed PASS but produced no new commit"
+
+    if config.test_command:
+        console.print(f"  [dim]Verifying: {config.test_command}[/dim]")
+        r = run_command(config.test_command, project_root, timeout=VERIFY_TEST_TIMEOUT)
+        if r.timed_out:
+            return False, f"verification test run timed out after {VERIFY_TEST_TIMEOUT}s"
+        if r.returncode != 0:
+            tail = (r.stdout + "\n" + r.stderr).strip()[-500:]
+            return False, f"claimed PASS but verification tests failed:\n{tail}"
+
+    return True, ""
 
 
 def _print_stats(prd: PRD, session: Session, config: RalphConfig, project_root: Path) -> None:
@@ -201,6 +224,7 @@ def run_loop(
         prompt = _build_iteration_prompt(story, config, project_root)
 
         # Execute
+        commit_before = git_current_commit(project_root)
         console.print(f"  [dim]Spawning fresh Claude Code instance...[/dim]")
         result = run_claude(
             prompt=prompt,
@@ -238,6 +262,15 @@ def run_loop(
         else:
             is_pass = status["result"] == "PASS" and status["exit_signal"]
             result_str = "pass" if is_pass else "fail"
+
+        # Don't trust the self-reported PASS — verify commit + tests independently
+        verify_reason = ""
+        if is_pass and not config.dry_run:
+            verified, verify_reason = _verify_pass(project_root, config, commit_before)
+            if not verified:
+                console.print(f"  [yellow]⚠️  PASS not verified: {verify_reason}[/yellow]")
+                is_pass = False
+                result_str = "unverified"
 
         # Save full iteration log (prompt + raw output + result)
         iteration_logger.save(
@@ -289,7 +322,12 @@ def run_loop(
             cb.record_failure(error_snippet)
             prd.save(prd_path)
 
-            failure_summary = status["summary"] if status else "No RALPH_STATUS"
+            if verify_reason:
+                failure_summary = verify_reason
+            elif status:
+                failure_summary = status["summary"]
+            else:
+                failure_summary = "No RALPH_STATUS"
             console.print(f"  [red]❌ Story {story.id} failed (attempt {retry_count}/{config.max_retries})[/red]")
             console.print(f"  [dim]{failure_summary}[/dim]")
 
