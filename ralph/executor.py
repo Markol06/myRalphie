@@ -25,6 +25,15 @@ class ExecutionResult:
         return self.stdout + "\n" + self.stderr
 
 
+def _to_text(value: str | bytes | None) -> str:
+    """TimeoutExpired carries str in text mode, bytes otherwise."""
+    if value is None:
+        return ""
+    if isinstance(value, bytes):
+        return value.decode("utf-8", errors="replace")
+    return value
+
+
 def run_claude(
     prompt: str,
     project_root: Path,
@@ -81,12 +90,10 @@ def run_claude(
     except subprocess.TimeoutExpired as e:
         timed_out = True
         duration = time.time() - start
-        stdout = e.stdout.decode() if e.stdout else ""
-        stderr = e.stderr.decode() if e.stderr else ""
         return ExecutionResult(
             returncode=-1,
-            stdout=stdout,
-            stderr=stderr,
+            stdout=_to_text(e.stdout),
+            stderr=_to_text(e.stderr),
             duration_seconds=duration,
             timed_out=True,
         )
@@ -113,8 +120,8 @@ def run_command(cmd: str, project_root: Path, timeout: int = 120) -> ExecutionRe
     except subprocess.TimeoutExpired as e:
         return ExecutionResult(
             returncode=-1,
-            stdout=e.stdout.decode() if e.stdout else "",
-            stderr=e.stderr.decode() if e.stderr else "",
+            stdout=_to_text(e.stdout),
+            stderr=_to_text(e.stderr),
             duration_seconds=time.time() - start,
             timed_out=True,
         )
