@@ -165,6 +165,7 @@ def run_loop(
     # Load state
     prd = PRD.load(prd_path)
     session = Session.load(session_path)
+    prog.init(ralph_dir / "progress.txt")
     cb = CircuitBreaker(
         cb_state_path, project_root,
         no_progress_threshold=config.cb_no_progress_threshold,
@@ -263,7 +264,6 @@ def run_loop(
             "input_tokens": result.input_tokens,
             "output_tokens": result.output_tokens,
         }
-        session.total_cost_usd += cost_data["cost_usd"]
         console.print(
             "  [dim]Usage: "
             f"in {cost_data['input_tokens']} · "

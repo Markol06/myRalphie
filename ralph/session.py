@@ -17,7 +17,6 @@ class Session:
     last_updated: str = ""
     status: str = "idle"              # idle | running | paused | complete | failed
     pause_reason: str = ""            # why we paused (test_failure, chunk_done, etc.)
-    total_cost_usd: float = 0.0
 
     @classmethod
     def load(cls, path: Path) -> "Session":
