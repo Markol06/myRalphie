@@ -1,12 +1,18 @@
 """Executor — spawns a fresh claude process for each iteration."""
 from __future__ import annotations
 
+import json
 import subprocess
+import threading
 import time
 import sys
 import shutil
 from pathlib import Path
 from dataclasses import dataclass
+
+from rich.console import Console
+
+console = Console()
 
 
 @dataclass
@@ -16,6 +22,11 @@ class ExecutionResult:
     stderr: str
     duration_seconds: float
     timed_out: bool = False
+    result_text: str = ""          # final assistant message from the result event
+    cost_usd: float = 0.0
+    input_tokens: int = 0          # includes cache creation/read tokens
+    output_tokens: int = 0
+    num_turns: int = 0
 
     @property
     def success(self) -> bool:
@@ -34,6 +45,33 @@ def _to_text(value: str | bytes | None) -> str:
     return value
 
 
+def _handle_stream_line(line: str, transcript: list[str], final: dict) -> None:
+    """Parse one stream-json line: echo progress, collect the result event."""
+    line = line.strip()
+    if not line:
+        return
+    try:
+        evt = json.loads(line)
+    except json.JSONDecodeError:
+        transcript.append(line)
+        return
+
+    etype = evt.get("type")
+    if etype == "assistant":
+        for block in evt.get("message", {}).get("content", []):
+            if block.get("type") == "text":
+                text = block.get("text", "").strip()
+                if text:
+                    transcript.append(text)
+                    console.print(text, style="dim", markup=False, highlight=False)
+            elif block.get("type") == "tool_use":
+                name = block.get("name", "?")
+                transcript.append(f"[tool_use] {name}")
+                console.print(f"  ⚙ {name}", style="dim cyan", markup=False)
+    elif etype == "result":
+        final.update(evt)
+
+
 def run_claude(
     prompt: str,
     project_root: Path,
@@ -41,7 +79,7 @@ def run_claude(
     timeout_seconds: int = 900,
     dry_run: bool = False,
 ) -> ExecutionResult:
-    """Spawn a fresh non-interactive Claude Code instance."""
+    """Spawn a fresh non-interactive Claude Code instance (stream-json output)."""
 
     if dry_run:
         print(f"\n  [DRY RUN] Would run claude with prompt:\n{prompt[:300]}...\n")
@@ -57,7 +95,8 @@ def run_claude(
     cmd = [
         claude_bin,
         "-p",
-        "--output-format", "text",
+        "--output-format", "stream-json",
+        "--verbose",
         "--permission-mode", "bypassPermissions",
         "--dangerously-skip-permissions",
         "--no-session-persistence",
@@ -67,36 +106,74 @@ def run_claude(
         cmd.extend(["--allowed-tools", tools_str])
 
     start = time.time()
-    timed_out = False
+    transcript: list[str] = []
+    final: dict = {}
+    stderr_chunks: list[str] = []
+
+    proc = subprocess.Popen(
+        cmd,
+        cwd=project_root,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+
+    def _consume_stdout() -> None:
+        assert proc.stdout is not None
+        for line in proc.stdout:
+            _handle_stream_line(line, transcript, final)
+
+    def _consume_stderr() -> None:
+        assert proc.stderr is not None
+        for line in proc.stderr:
+            stderr_chunks.append(line)
+
+    out_thread = threading.Thread(target=_consume_stdout, daemon=True)
+    err_thread = threading.Thread(target=_consume_stderr, daemon=True)
+    out_thread.start()
+    err_thread.start()
 
     try:
-        proc = subprocess.run(
-            cmd,
-            cwd=project_root,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            input=prompt,
-            timeout=timeout_seconds,
-        )
-        duration = time.time() - start
-        return ExecutionResult(
-            returncode=proc.returncode,
-            stdout=proc.stdout,
-            stderr=proc.stderr,
-            duration_seconds=duration,
-        )
-    except subprocess.TimeoutExpired as e:
+        assert proc.stdin is not None
+        proc.stdin.write(prompt)
+        proc.stdin.close()
+    except OSError:
+        pass  # process died before reading the prompt; returncode will tell
+
+    timed_out = False
+    try:
+        proc.wait(timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
         timed_out = True
-        duration = time.time() - start
-        return ExecutionResult(
-            returncode=-1,
-            stdout=_to_text(e.stdout),
-            stderr=_to_text(e.stderr),
-            duration_seconds=duration,
-            timed_out=True,
-        )
+        proc.kill()
+        proc.wait()
+
+    out_thread.join(timeout=10)
+    err_thread.join(timeout=10)
+    duration = time.time() - start
+
+    usage = final.get("usage") or {}
+    total_input = (
+        int(usage.get("input_tokens") or 0)
+        + int(usage.get("cache_creation_input_tokens") or 0)
+        + int(usage.get("cache_read_input_tokens") or 0)
+    )
+
+    return ExecutionResult(
+        returncode=-1 if timed_out else proc.returncode,
+        stdout="\n".join(transcript),
+        stderr="".join(stderr_chunks),
+        duration_seconds=duration,
+        timed_out=timed_out,
+        result_text=str(final.get("result") or ""),
+        cost_usd=float(final.get("total_cost_usd") or 0.0),
+        input_tokens=total_input,
+        output_tokens=int(usage.get("output_tokens") or 0),
+        num_turns=int(final.get("num_turns") or 0),
+    )
 
 
 def run_command(cmd: str, project_root: Path, timeout: int = 120) -> ExecutionResult:
