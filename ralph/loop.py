@@ -208,17 +208,22 @@ def run_loop(
 
         output = result.combined_output()
 
-        # Parse RALPH_STATUS
-        status = _parse_ralph_status(output)
+        # Parse RALPH_STATUS — prefer the final message, fall back to full transcript
+        status = _parse_ralph_status(result.result_text) or _parse_ralph_status(output)
 
-        # Cost tracking
-        cost_data = cost_tracker.parse_cost(output)
+        # Cost tracking — structured data from the stream-json result event
+        cost_data = {
+            "cost_usd": result.cost_usd,
+            "input_tokens": result.input_tokens,
+            "output_tokens": result.output_tokens,
+        }
         session.total_cost_usd += cost_data["cost_usd"]
         console.print(
             "  [dim]Usage: "
-            f"in {cost_data.get('input_tokens', 0)} · "
-            f"out {cost_data.get('output_tokens', 0)} · "
-            f"cost ${cost_data.get('cost_usd', 0.0):.4f}[/dim]"
+            f"in {cost_data['input_tokens']} · "
+            f"out {cost_data['output_tokens']} · "
+            f"cost ${cost_data['cost_usd']:.4f} · "
+            f"turns {result.num_turns}[/dim]"
         )
 
         if status is None:
@@ -241,7 +246,7 @@ def run_loop(
             output=output,
             result=result_str,
             duration=result.duration_seconds,
-            cost_usd=cost_data.get("cost_usd", 0.0),
+            cost_usd=cost_data["cost_usd"],
         )
 
         cost_tracker.log(
