@@ -17,7 +17,7 @@ from . import progress as prog
 from . import cost_tracker
 from .executor import (
     run_claude, run_command, git_current_commit,
-    git_create_branch, git_checkout,
+    git_current_branch, git_create_branch, git_checkout,
 )
 from .notifier import notify
 from . import logger as iteration_logger
@@ -98,6 +98,22 @@ def _build_iteration_prompt(
 VERIFY_TEST_TIMEOUT = 600  # seconds for the independent test run after a claimed PASS
 
 
+def _ensure_run_branch(project_root: Path, branch: str, base: str) -> tuple[bool, str]:
+    """Trunk-based run: one branch (prd.branch_name) for the whole run.
+
+    Checks out the branch if it exists, otherwise creates it from base.
+    """
+    if not branch:
+        return True, ""
+    if git_current_branch(project_root) == branch:
+        return True, ""
+    if git_checkout(project_root, branch):
+        return True, ""
+    if git_create_branch(project_root, branch, base):
+        return True, ""
+    return False, f"could not checkout or create branch '{branch}' from '{base}'"
+
+
 def _verify_pass(
     project_root: Path, config: RalphConfig, commit_before: str
 ) -> tuple[bool, str]:
@@ -169,6 +185,21 @@ def run_loop(
         if session.total_iterations > 0:
             session.start_new_chunk()
 
+    # Trunk-based branching: the whole run lives on prd.branch_name
+    if not config.dry_run:
+        ok, branch_err = _ensure_run_branch(project_root, prd.branch_name, config.base_branch)
+        if not ok:
+            console.print(Panel(
+                f"[bold red]Git branch setup failed[/bold red]\n\n{branch_err}\n\n"
+                "Fix the working tree (uncommitted changes?) and run "
+                "[bold]ralph run --resume[/bold]",
+                border_style="red",
+            ))
+            session.status = "paused"
+            session.pause_reason = f"branch_setup: {branch_err}"
+            session.save(session_path)
+            return
+
     session.status = "running"
     session.save(session_path)
 
@@ -205,20 +236,6 @@ def run_loop(
             f"[bold]Chunk {session.chunk_number} · Iteration {iter_num}/{config.chunk_size} "
             f"· Story {story.id}: {story.title}[/bold]"
         )
-
-        # Branch per task
-        if config.branch_per_task and not story.branch:
-            branch_name = f"ralph/{story.id.lower()}-{story.title.lower().replace(' ', '-')[:30]}"
-            branch_name = re.sub(r"[^a-z0-9\-/]", "", branch_name)
-            story.branch = branch_name
-            prd.save(prd_path)
-
-            if not config.dry_run:
-                git_create_branch(project_root, branch_name, config.base_branch)
-
-        elif config.branch_per_task and story.branch:
-            if not config.dry_run:
-                git_checkout(project_root, story.branch)
 
         # Build prompt
         prompt = _build_iteration_prompt(story, config, project_root)
@@ -299,7 +316,7 @@ def run_loop(
         if is_pass:
             # ── SUCCESS ──
             current_commit = git_current_commit(project_root)
-            prd.mark_done(story.id, current_commit, story.branch)
+            prd.mark_done(story.id, current_commit, prd.branch_name)
             prd.save(prd_path)
             cb.record_success()
 

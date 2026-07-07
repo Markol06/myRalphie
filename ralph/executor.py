@@ -204,6 +204,14 @@ def run_command(cmd: str, project_root: Path, timeout: int = 120) -> ExecutionRe
         )
 
 
+def git_current_branch(project_root: Path) -> str:
+    r = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=project_root, capture_output=True, text=True, timeout=10,
+    )
+    return r.stdout.strip()
+
+
 def git_current_commit(project_root: Path) -> str:
     r = subprocess.run(
         ["git", "rev-parse", "HEAD"],
