@@ -333,17 +333,18 @@ def run_loop(
 
         else:
             # ── FAILURE ──
-            retry_count = prd.increment_retry(story.id)
-            error_snippet = output[-500:] if output else ""
-            cb.record_failure(error_snippet)
-            prd.save(prd_path)
-
             if verify_reason:
                 failure_summary = verify_reason
             elif status:
                 failure_summary = status["summary"]
             else:
                 failure_summary = "No RALPH_STATUS"
+
+            retry_count = prd.increment_retry(story.id)
+            # Use the summary for same-error detection: raw output tails are
+            # full of timestamps/paths and never compare equal
+            cb.record_failure(failure_summary)
+            prd.save(prd_path)
             console.print(f"  [red]❌ Story {story.id} failed (attempt {retry_count}/{config.max_retries})[/red]")
             console.print(f"  [dim]{failure_summary}[/dim]")
 

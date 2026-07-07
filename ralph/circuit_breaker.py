@@ -59,6 +59,10 @@ class CircuitBreaker:
         self.state.last_commit = self._current_commit()
         self.state.save(self.state_path)
 
+    @staticmethod
+    def _normalize_error(error: str) -> str:
+        return " ".join(error.lower().split())
+
     def record_failure(self, error: str) -> None:
         current = self._current_commit()
 
@@ -69,8 +73,9 @@ class CircuitBreaker:
             self.state.no_progress_count = 0
             self.state.last_commit = current
 
-        # Same error repeated
-        if error and error == self.state.last_error:
+        # Same error repeated (case/whitespace-insensitive)
+        normalized = self._normalize_error(error)
+        if normalized and normalized == self._normalize_error(self.state.last_error):
             self.state.same_error_count += 1
         else:
             self.state.same_error_count = 1
