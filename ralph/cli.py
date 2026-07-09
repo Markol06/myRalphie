@@ -436,13 +436,22 @@ def doctor(project, run_tests):
 def init(project):
     """Initialize a new Ralph project (creates .ralph/ directory and .ralphrc)."""
     from .scaffold import ensure_claude_scaffold
+    from .detect import detect_commands
 
     project_root = _resolve_project(project)
     ralph_dir = project_root / ".ralph"
     ralph_dir.mkdir(exist_ok=True)
     (ralph_dir / "logs").mkdir(exist_ok=True)
 
-    config = RalphConfig()
+    # Keep an existing .ralphrc; env secrets are not applied so they can't
+    # leak into the saved file
+    config = RalphConfig.load(project_root, apply_env=False)
+    detected = detect_commands(project_root)
+    detected_lines = []
+    for field_name, command in detected.items():
+        if not getattr(config, field_name):
+            setattr(config, field_name, command)
+            detected_lines.append(f"Detected {field_name}: [cyan]{command}[/cyan]")
     config.save(project_root)
     created = ensure_claude_scaffold(project_root)
     created_lines = "\n".join(
@@ -451,11 +460,12 @@ def init(project):
     if not created_lines:
         created_lines = "Claude Code Ralph instructions already present."
 
+    detected_block = ("\n".join(detected_lines) + "\n") if detected_lines else ""
     console.print(Panel(
         f"[bold green]Ralph initialized[/bold green]\n\n"
         f"Created: [cyan].ralph/[/cyan]\n"
         f"Created: [cyan].ralphrc[/cyan]\n"
-        f"{created_lines}\n\n"
+        f"{created_lines}\n{detected_block}\n"
         "Next shell step: [bold]claude[/bold]\n"
         "Then tell Claude what you want to build in plain language.\n"
         "It will use the Ralph instructions from [cyan]CLAUDE.md[/cyan].\n"
