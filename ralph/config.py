@@ -23,6 +23,7 @@ class RalphConfig:
 
     # Claude instance
     model: str = ""               # e.g. "claude-sonnet-5"; empty = account default
+    retry_model: str = ""         # stronger model for retries (e.g. "claude-opus-4-8"); empty = same as model
     max_turns: int = 0            # cap agent turns per iteration; 0 = unlimited
 
     # Budget — total cost.log spend at which the run pauses; 0 = unlimited
