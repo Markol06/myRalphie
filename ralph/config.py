@@ -25,6 +25,7 @@ class RalphConfig:
     model: str = ""               # e.g. "claude-sonnet-5"; empty = account default
     retry_model: str = ""         # stronger model for retries (e.g. "claude-opus-4-8"); empty = same as model
     max_turns: int = 0            # cap agent turns per iteration; 0 = unlimited
+    use_goal: bool = True         # drive each iteration with /goal (independent per-turn evaluator)
 
     # Budget — total cost.log spend at which the run pauses; 0 = unlimited
     max_cost_usd: float = 0.0

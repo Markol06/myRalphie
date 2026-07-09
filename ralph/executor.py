@@ -115,6 +115,7 @@ def run_claude(
     model: str = "",
     max_turns: int = 0,
     json_schema: str = "",
+    append_system_prompt_file: Path | None = None,
 ) -> ExecutionResult:
     """Spawn a fresh non-interactive Claude Code instance (stream-json output).
 
@@ -144,6 +145,8 @@ def run_claude(
         cmd.extend(["--max-turns", str(max_turns)])
     if json_schema:
         cmd.extend(["--json-schema", json_schema])
+    if append_system_prompt_file:
+        cmd.extend(["--append-system-prompt-file", str(append_system_prompt_file)])
 
     start = time.time()
     transcript: list[str] = []
