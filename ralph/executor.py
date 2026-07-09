@@ -45,6 +45,40 @@ def _to_text(value: str | bytes | None) -> str:
     return value
 
 
+def find_claude() -> str:
+    if sys.platform.startswith("win"):
+        return shutil.which("claude.cmd") or shutil.which("claude") or "claude.cmd"
+    return shutil.which("claude") or "claude"
+
+
+def run_claude_text(
+    prompt: str, cwd: Path, model: str = "", timeout: int = 300
+) -> str | None:
+    """One-shot `claude -p` text call for prompts that need no tools.
+
+    Returns the output text, or None on failure/timeout.
+    """
+    cmd = [find_claude(), "-p", "--output-format", "text"]
+    if model:
+        cmd.extend(["--model", model])
+    try:
+        proc = subprocess.run(
+            cmd,
+            cwd=cwd,
+            input=prompt,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return None
+    if proc.returncode != 0:
+        return None
+    return proc.stdout.strip() or None
+
+
 def _handle_stream_line(line: str, transcript: list[str], final: dict) -> None:
     """Parse one stream-json line: echo progress, collect the result event."""
     line = line.strip()
@@ -90,10 +124,7 @@ def run_claude(
         print(f"\n  [DRY RUN] Would run claude with prompt:\n{prompt[:300]}...\n")
         return ExecutionResult(returncode=0, stdout="[dry-run]", stderr="", duration_seconds=0)
 
-    if sys.platform.startswith("win"):
-        claude_bin = shutil.which("claude.cmd") or shutil.which("claude") or "claude.cmd"
-    else:
-        claude_bin = shutil.which("claude") or "claude"
+    claude_bin = find_claude()
 
     cmd = [
         claude_bin,
