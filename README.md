@@ -84,6 +84,8 @@ ralph run --resume
 
 ## How a Run Works
 
+- The run starts only on a clean working tree, so your local edits never get
+  mixed into the agent's commits.
 - The whole run happens on a single branch — `branch_name` from `prd.json`,
   created from `base_branch` if it doesn't exist yet (trunk-based, so every
   story builds on the previous ones).
@@ -91,21 +93,29 @@ ralph run --resume
   **full tool access** (`bypassPermissions`). Run Ralph only in repos where
   you accept that.
 - A story is marked done only after Ralph independently verifies the claim:
-  a new commit must exist and `test_command` (if configured) must pass when
-  Ralph runs it itself.
+  a new commit must exist and the configured `test_command`, `lint_command`
+  and `build_command` must pass when Ralph runs them itself.
 - Cost and token usage come from Claude Code's structured `stream-json`
   output and are logged per iteration to `.ralph/cost.log`.
-- A circuit breaker pauses the run after repeated no-progress iterations or
-  the same failure summary repeating.
+- Safeguards that pause the run: circuit breaker (no git progress / same
+  failure repeating), per-story retry limit, per-iteration timeout, and the
+  `max_cost_usd` budget limit.
+- By default the run pauses for review after each chunk (`chunk_size`
+  iterations); `ralph run --until-done` rolls through chunks automatically
+  until the stories are done or a safeguard stops it.
+- Retries can escalate to a stronger model via `retry_model` — cheap first
+  attempt, bigger model when a story resists.
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `ralph init` | Initialize `.ralph/`, prompt files, and Ralph instructions in `CLAUDE.md` |
+| `ralph init` | Initialize `.ralph/`, `.ralphrc` (with auto-detected commands), `.gitignore` entries and `CLAUDE.md` instructions |
+| `ralph doctor` | Validate the setup: claude binary, git, prd, config, notifications (`--run-tests` also runs tests) |
 | `ralph interview` | Prepare the Claude-native interview flow and show next steps |
 | `ralph run` | Run autonomous chunk loop |
 | `ralph run --resume` | Resume loop |
+| `ralph run --until-done` | Keep rolling through chunks until done or a safeguard stops the run |
 | `ralph resume` | Alias for `run --resume` |
 | `ralph status` | Show progress and totals |
 | `ralph cost` | Show per-iteration cost/tokens |
@@ -113,6 +123,9 @@ ralph run --resume
 | `ralph skip S001` | Mark story failed and move on |
 | `ralph retry S001` | Reset failed story |
 | `ralph reset-circuit` | Reset circuit breaker |
+| `ralph compact` | Compress old `progress.txt` entries into a digest (memory management) |
+| `ralph pr` | Push the run branch and open a GitHub PR via `gh` (`--draft` supported) |
+| `ralph archive` | Move the finished run's state to `.ralph/history/` for a fresh start |
 
 ## Configuration (`.ralphrc`)
 
@@ -122,7 +135,9 @@ ralph run --resume
   "max_retries": 3,
   "claude_timeout": 900,
   "model": "",
+  "retry_model": "",
   "max_turns": 0,
+  "max_cost_usd": 0,
   "test_command": "pytest -q",
   "lint_command": "ruff check .",
   "build_command": "",
@@ -132,7 +147,13 @@ ralph run --resume
 
 - `model` — model for autonomous iterations (e.g. `claude-sonnet-5`); empty
   uses your account default.
+- `retry_model` — stronger model for retries (e.g. `claude-opus-4-8`); empty
+  keeps using `model`.
 - `max_turns` — cap on agent turns per iteration; `0` means unlimited.
+- `max_cost_usd` — pause the run when total spend in `cost.log` reaches this
+  amount; `0` means unlimited. Recommended for `--until-done` runs.
+- `test_command` / `lint_command` / `build_command` are auto-detected by
+  `ralph init` where possible and all run during PASS verification.
 - `ralph init` also adds `.ralph/` and `.ralphrc` to the target project's
   `.gitignore` so local state and tokens never get committed.
 
