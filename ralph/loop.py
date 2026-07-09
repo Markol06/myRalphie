@@ -133,6 +133,28 @@ def _build_iteration_prompt(
 
 
 VERIFY_COMMAND_TIMEOUT = 600  # seconds per verification command after a claimed PASS
+GOAL_STOP_TURNS = 30          # bound inside the /goal condition; /goal conditions max out at 4000 chars
+_GOAL_MAX_CHARS = 3800
+
+
+def _build_goal_condition(story, config: RalphConfig) -> str:
+    """Completion condition for /goal — checked by an independent evaluator
+    after every turn, so it must be demonstrable from the transcript."""
+    criteria = "; ".join(story.acceptance_criteria) or "the story description is implemented"
+    parts = [
+        f'Story {story.id} "{story.title}" is fully implemented. '
+        f"All acceptance criteria demonstrably hold: {criteria}."
+    ]
+    if config.test_command:
+        parts.append(f"`{config.test_command}` was run and exited 0 (show the output).")
+    parts.append("All changes are committed (`git status` shows a clean tree).")
+    parts.append("The final status has been reported.")
+    parts.append(
+        f"If the story cannot be completed, stop after {GOAL_STOP_TURNS} turns "
+        "and report result FAIL with the blocker."
+    )
+    condition = " ".join(parts)
+    return condition[:_GOAL_MAX_CHARS]
 
 
 def _ensure_run_branch(project_root: Path, branch: str, base: str) -> tuple[bool, str]:
@@ -332,15 +354,36 @@ def run_loop(
 
         commit_before = git_current_commit(project_root)
         console.print("  [dim]Spawning fresh Claude Code instance...[/dim]")
-        result = run_claude(
-            prompt=prompt,
-            project_root=project_root,
-            timeout_seconds=config.claude_timeout,
-            dry_run=config.dry_run,
-            model=model,
-            max_turns=config.max_turns,
-            json_schema=STATUS_SCHEMA,
-        )
+
+        if config.use_goal:
+            # /goal mode: the iteration context rides in the system prompt and
+            # the user message is the goal condition — an independent evaluator
+            # (small fast model) re-checks it after every turn and keeps the
+            # agent working until it holds
+            context_file = ralph_dir / "iteration_context.md"
+            context_file.write_text(prompt, encoding="utf-8")
+            goal_message = f"/goal {_build_goal_condition(story, config)}"
+            result = run_claude(
+                prompt=goal_message,
+                project_root=project_root,
+                timeout_seconds=config.claude_timeout,
+                dry_run=config.dry_run,
+                model=model,
+                max_turns=config.max_turns,
+                json_schema=STATUS_SCHEMA,
+                append_system_prompt_file=context_file,
+            )
+            prompt = f"{goal_message}\n\n── SYSTEM CONTEXT ──\n\n{prompt}"  # for the log
+        else:
+            result = run_claude(
+                prompt=prompt,
+                project_root=project_root,
+                timeout_seconds=config.claude_timeout,
+                dry_run=config.dry_run,
+                model=model,
+                max_turns=config.max_turns,
+                json_schema=STATUS_SCHEMA,
+            )
 
         output = result.combined_output()
 
