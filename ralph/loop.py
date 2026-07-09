@@ -196,6 +196,10 @@ def run_loop(
         session.iteration_in_chunk = 0
         if session.total_iterations > 0:
             session.start_new_chunk()
+    elif session.is_chunk_done(config.chunk_size):
+        # Resuming after chunk_done: the finished chunk would make the loop a
+        # no-op, so roll into the next chunk
+        session.start_new_chunk()
 
     # Refuse to start on a dirty tree — the agent commits with `git add -A`,
     # so any local edits would get mixed into its commits
