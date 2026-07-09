@@ -17,7 +17,7 @@ from . import progress as prog
 from . import cost_tracker
 from .executor import (
     run_claude, run_command, git_current_commit,
-    git_current_branch, git_create_branch, git_checkout,
+    git_current_branch, git_create_branch, git_checkout, git_dirty_files,
 )
 from .notifier import notify
 from . import logger as iteration_logger
@@ -189,6 +189,20 @@ def run_loop(
         session.iteration_in_chunk = 0
         if session.total_iterations > 0:
             session.start_new_chunk()
+
+    # Refuse to start on a dirty tree — the agent commits with `git add -A`,
+    # so any local edits would get mixed into its commits
+    if not config.dry_run:
+        dirty = git_dirty_files(project_root)
+        if dirty:
+            shown = "\n".join(dirty[:10])
+            more = f"\n... and {len(dirty) - 10} more" if len(dirty) > 10 else ""
+            console.print(Panel(
+                f"[bold red]Working tree is not clean[/bold red]\n\n{shown}{more}\n\n"
+                "Commit or stash your changes first, then run [bold]ralph run[/bold] again.",
+                border_style="red",
+            ))
+            return
 
     # Trunk-based branching: the whole run lives on prd.branch_name
     if not config.dry_run:

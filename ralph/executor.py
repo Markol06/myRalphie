@@ -209,6 +209,15 @@ def run_command(cmd: str, project_root: Path, timeout: int = 120) -> ExecutionRe
         )
 
 
+def git_dirty_files(project_root: Path) -> list[str]:
+    """Uncommitted changes (staged, unstaged and untracked), porcelain lines."""
+    r = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=project_root, capture_output=True, text=True, timeout=10,
+    )
+    return [line for line in r.stdout.splitlines() if line.strip()]
+
+
 def git_current_branch(project_root: Path) -> str:
     r = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
