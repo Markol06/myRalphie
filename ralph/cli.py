@@ -362,6 +362,23 @@ def log_cmd(story_id, project, list_all, output_only):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+@main.command(name="pr")
+@click.option("--project", "-p", default=None)
+@click.option("--draft", is_flag=True, help="Create as draft PR")
+def pr_cmd(project, draft):
+    """Create a GitHub PR from the run branch (requires gh CLI)."""
+    from .pr import create_pr
+
+    project_root = _resolve_project(project)
+    ralph_dir = _require_ralph_dir(project_root)
+    if not (ralph_dir / "prd.json").exists():
+        console.print("[red]No prd.json found.[/red]")
+        sys.exit(1)
+
+    sys.exit(0 if create_pr(project_root, draft=draft) else 1)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 @main.command()
 @click.option("--project", "-p", default=None)
 def reset_circuit(project):
