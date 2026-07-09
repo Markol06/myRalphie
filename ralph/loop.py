@@ -327,7 +327,14 @@ def run_loop(
             f"turns {result.num_turns}[/dim]"
         )
 
-        if status is None:
+        if result.timed_out:
+            # A timeout usually means the story is too large for one session —
+            # record that explicitly so the retry (and the human) know
+            console.print(f"[yellow]⚠️  Claude timed out after {config.claude_timeout}s[/yellow]")
+            result_str = "timeout"
+            is_pass = False
+            status = None
+        elif status is None:
             # Claude didn't output RALPH_STATUS — treat as failure
             console.print("[yellow]⚠️  No RALPH_STATUS found in output[/yellow]")
             result_str = "no_status"
@@ -390,7 +397,12 @@ def run_loop(
 
         else:
             # ── FAILURE ──
-            if verify_reason:
+            if result.timed_out:
+                failure_summary = (
+                    f"timed out after {config.claude_timeout}s — "
+                    "story may be too large for one session, consider splitting it"
+                )
+            elif verify_reason:
                 failure_summary = verify_reason
             elif status:
                 failure_summary = status["summary"]
