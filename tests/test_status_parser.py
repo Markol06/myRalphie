@@ -1,5 +1,7 @@
 """Tests for RALPH_STATUS parsing in ralph.loop."""
-from ralph.loop import _parse_ralph_status
+import json
+
+from ralph.loop import _parse_ralph_status, _status_from_structured, STATUS_SCHEMA
 
 
 SAMPLE_PASS = """
@@ -70,3 +72,29 @@ def test_case_insensitive_result():
     status = _parse_ralph_status(text)
     assert status is not None
     assert status["result"] == "PASS"
+
+
+# ── structured output (--json-schema) ──────────────────────────────────────
+
+
+def test_structured_status_normalizes():
+    status = _status_from_structured({
+        "story_id": "S001", "result": "pass", "exit_signal": True,
+        "summary": "done", "learnings": "x",
+    })
+    assert status is not None
+    assert status["result"] == "PASS"
+    assert status["exit_signal"] is True
+    assert status["test_output"] == ""
+
+
+def test_structured_status_rejects_garbage():
+    assert _status_from_structured(None) is None
+    assert _status_from_structured({}) is None
+    assert _status_from_structured({"result": "MAYBE"}) is None
+
+
+def test_status_schema_is_valid_json():
+    schema = json.loads(STATUS_SCHEMA)
+    assert schema["properties"]["result"]["enum"] == ["PASS", "FAIL"]
+    assert "story_id" in schema["required"]

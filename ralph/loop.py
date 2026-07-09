@@ -1,6 +1,7 @@
 """Main Ralph loop — runs chunk_size iterations of the autonomous coding loop."""
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 from pathlib import Path
@@ -32,6 +33,38 @@ _STATUS_RE = re.compile(
 _LEARNINGS_RE = re.compile(r"learnings:\s*(.+?)(?=test_output:|$)", re.DOTALL | re.IGNORECASE)
 _TEST_OUTPUT_RE = re.compile(r"test_output:\s*(.+?)$", re.DOTALL | re.IGNORECASE)
 _STATUS_MARKER_RE = re.compile(r"RALPH_STATUS", re.IGNORECASE)
+
+# Passed to claude via --json-schema: the CLI validates the final structured
+# output against this, so the status arrives as data instead of parsed text
+STATUS_SCHEMA = json.dumps({
+    "type": "object",
+    "properties": {
+        "story_id": {"type": "string"},
+        "result": {"type": "string", "enum": ["PASS", "FAIL"]},
+        "exit_signal": {"type": "boolean"},
+        "summary": {"type": "string"},
+        "learnings": {"type": "string"},
+        "test_output": {"type": "string"},
+    },
+    "required": ["story_id", "result", "exit_signal", "summary"],
+})
+
+
+def _status_from_structured(data: dict | None) -> dict | None:
+    """Normalize --json-schema structured output into the status dict."""
+    if not isinstance(data, dict):
+        return None
+    result = str(data.get("result", "")).upper()
+    if result not in ("PASS", "FAIL"):
+        return None
+    return {
+        "story_id": str(data.get("story_id", "")),
+        "result": result,
+        "exit_signal": bool(data.get("exit_signal", False)),
+        "summary": str(data.get("summary", "")),
+        "learnings": str(data.get("learnings", "")),
+        "test_output": str(data.get("test_output", "")),
+    }
 
 
 def _parse_ralph_status(output: str) -> dict | None:
@@ -306,12 +339,18 @@ def run_loop(
             dry_run=config.dry_run,
             model=model,
             max_turns=config.max_turns,
+            json_schema=STATUS_SCHEMA,
         )
 
         output = result.combined_output()
 
-        # Parse RALPH_STATUS — prefer the final message, fall back to full transcript
-        status = _parse_ralph_status(result.result_text) or _parse_ralph_status(output)
+        # Status: validated structured output first, text parsing as fallback
+        # (older CLI versions without --json-schema support)
+        status = (
+            _status_from_structured(result.structured_output)
+            or _parse_ralph_status(result.result_text)
+            or _parse_ralph_status(output)
+        )
 
         # Cost tracking — structured data from the stream-json result event
         cost_data = {
