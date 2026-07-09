@@ -31,26 +31,30 @@ _STATUS_RE = re.compile(
 )
 _LEARNINGS_RE = re.compile(r"learnings:\s*(.+?)(?=test_output:|$)", re.DOTALL | re.IGNORECASE)
 _TEST_OUTPUT_RE = re.compile(r"test_output:\s*(.+?)$", re.DOTALL | re.IGNORECASE)
+_STATUS_MARKER_RE = re.compile(r"RALPH_STATUS", re.IGNORECASE)
 
 
 def _parse_ralph_status(output: str) -> dict | None:
-    # Take the LAST match: Claude may quote the status format earlier in the
-    # output, but the real block is emitted at the end.
-    matches = list(_STATUS_RE.finditer(output))
-    if not matches:
-        return None
-    m = matches[-1]
-    tail = output[m.start():]
-    learnings_m = _LEARNINGS_RE.search(tail)
-    test_m = _TEST_OUTPUT_RE.search(tail)
-    return {
-        "story_id": m.group(1).strip(),
-        "result": m.group(2).strip().upper(),
-        "exit_signal": m.group(3).strip().lower() == "true",
-        "summary": m.group(4).strip(),
-        "learnings": learnings_m.group(1).strip() if learnings_m else "",
-        "test_output": test_m.group(1).strip() if test_m else "",
-    }
+    # Anchor to the LAST "RALPH_STATUS" marker: Claude may quote the status
+    # format earlier in the output, but the real block is emitted at the end.
+    # (A single greedy search would swallow both blocks as one match.)
+    markers = list(_STATUS_MARKER_RE.finditer(output))
+    for marker in reversed(markers):
+        tail = output[marker.start():]
+        m = _STATUS_RE.search(tail)
+        if not m:
+            continue  # partial/quoted mention without fields — try earlier one
+        learnings_m = _LEARNINGS_RE.search(tail)
+        test_m = _TEST_OUTPUT_RE.search(tail)
+        return {
+            "story_id": m.group(1).strip(),
+            "result": m.group(2).strip().upper(),
+            "exit_signal": m.group(3).strip().lower() == "true",
+            "summary": m.group(4).strip(),
+            "learnings": learnings_m.group(1).strip() if learnings_m else "",
+            "test_output": test_m.group(1).strip() if test_m else "",
+        }
+    return None
 
 
 def _build_iteration_prompt(
