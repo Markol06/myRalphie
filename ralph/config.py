@@ -51,7 +51,9 @@ class RalphConfig:
     dry_run: bool = False
 
     @classmethod
-    def load(cls, project_root: Path) -> "RalphConfig":
+    def load(cls, project_root: Path, apply_env: bool = True) -> "RalphConfig":
+        """Load .ralphrc; set apply_env=False when the result will be saved
+        back, so env-provided secrets never get written to the file."""
         rc_file = project_root / ".ralphrc"
         if rc_file.exists():
             with open(rc_file) as f:
@@ -62,11 +64,12 @@ class RalphConfig:
         else:
             config = cls()
 
-        # env vars win over .ralphrc for secrets
-        for attr, env_name in _ENV_OVERRIDES.items():
-            value = os.environ.get(env_name)
-            if value:
-                setattr(config, attr, value)
+        if apply_env:
+            # env vars win over .ralphrc for secrets
+            for attr, env_name in _ENV_OVERRIDES.items():
+                value = os.environ.get(env_name)
+                if value:
+                    setattr(config, attr, value)
         return config
 
     def save(self, project_root: Path) -> None:
