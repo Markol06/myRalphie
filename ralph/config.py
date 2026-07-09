@@ -25,6 +25,9 @@ class RalphConfig:
     model: str = ""               # e.g. "claude-sonnet-5"; empty = account default
     max_turns: int = 0            # cap agent turns per iteration; 0 = unlimited
 
+    # Budget — total cost.log spend at which the run pauses; 0 = unlimited
+    max_cost_usd: float = 0.0
+
     # Circuit breaker
     cb_no_progress_threshold: int = 3   # stop after N iters with no git change
     cb_same_error_threshold: int = 5    # stop after N iters with same error
