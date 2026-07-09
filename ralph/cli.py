@@ -421,6 +421,23 @@ def reset_circuit(project):
 # ──────────────────────────────────────────────────────────────────────────────
 @main.command()
 @click.option("--project", "-p", default=None)
+@click.option("--force", is_flag=True, help="Archive even with pending stories")
+def archive(project, force):
+    """Move the finished run's state to .ralph/history/ for a fresh start."""
+    from .archive import archive_run
+
+    project_root = _resolve_project(project)
+    _require_ralph_dir(project_root)
+
+    archived, message = archive_run(project_root, force=force)
+    style = "green" if archived else "yellow"
+    console.print(f"[{style}]{message}[/{style}]")
+    sys.exit(0 if archived else 1)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+@main.command()
+@click.option("--project", "-p", default=None)
 @click.option("--run-tests", is_flag=True, help="Also execute test_command as part of the check")
 def doctor(project, run_tests):
     """Validate the Ralph setup (claude binary, git, prd, config, notifications)."""
