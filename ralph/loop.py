@@ -372,6 +372,7 @@ def run_loop(
                 max_turns=config.max_turns,
                 json_schema=STATUS_SCHEMA,
                 append_system_prompt_file=context_file,
+                max_budget_usd=config.iteration_budget_usd,
             )
             prompt = f"{goal_message}\n\n── SYSTEM CONTEXT ──\n\n{prompt}"  # for the log
         else:
@@ -383,6 +384,7 @@ def run_loop(
                 model=model,
                 max_turns=config.max_turns,
                 json_schema=STATUS_SCHEMA,
+                max_budget_usd=config.iteration_budget_usd,
             )
 
         output = result.combined_output()
