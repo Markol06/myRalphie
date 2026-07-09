@@ -75,5 +75,5 @@ def list_logs(logs_dir: Path) -> list[dict]:
 def find_latest(logs_dir: Path, story_id: str | None = None) -> Path | None:
     logs = list_logs(logs_dir)
     if story_id:
-        logs = [l for l in logs if l["story_id"].upper() == story_id.upper()]
+        logs = [e for e in logs if e["story_id"].upper() == story_id.upper()]
     return logs[0]["path"] if logs else None
