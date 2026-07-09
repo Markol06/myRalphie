@@ -9,7 +9,7 @@ RALPH_CLAUDE_SECTION_END = "<!-- RALPH_CLAUDE_END -->"
 
 
 def ensure_claude_scaffold(project_root: Path) -> list[Path]:
-    """Create project-local Ralph prompt files and inject CLAUDE.md guidance."""
+    """Create the ralph-interview skill and inject CLAUDE.md guidance."""
     created: list[Path] = []
 
     _remove_legacy_command_files(project_root)
@@ -19,15 +19,18 @@ def ensure_claude_scaffold(project_root: Path) -> list[Path]:
     prompts_dir = ralph_dir / "prompts"
     prompts_dir.mkdir(parents=True, exist_ok=True)
 
-    interview_prompt = prompts_dir / "interview.md"
-    if not interview_prompt.exists():
-        interview_prompt.write_text(_interview_prompt_text(), encoding="utf-8")
-        created.append(interview_prompt)
-
     bootstrap_prompt = prompts_dir / "bootstrap_message.txt"
-    if not bootstrap_prompt.exists():
+    if not bootstrap_prompt.exists() or "prompts/interview.md" in bootstrap_prompt.read_text(encoding="utf-8"):
         bootstrap_prompt.write_text(_bootstrap_message_text(), encoding="utf-8")
         created.append(bootstrap_prompt)
+
+    # The interview lives in a Claude Code skill: its body loads into context
+    # only when invoked, and it's callable explicitly as /ralph-interview
+    skill_file = project_root / ".claude" / "skills" / "ralph-interview" / "SKILL.md"
+    if not skill_file.exists():
+        skill_file.parent.mkdir(parents=True, exist_ok=True)
+        skill_file.write_text(_interview_skill_text(), encoding="utf-8")
+        created.append(skill_file)
 
     claude_md = project_root / "CLAUDE.md"
     if _upsert_claude_md(claude_md):
@@ -68,9 +71,12 @@ def _remove_legacy_command_files(project_root: Path) -> None:
 
 
 def _remove_legacy_prompt_files(project_root: Path) -> None:
-    path = project_root / ".ralph" / "prompts" / "next_story.md"
-    if path.exists():
-        path.unlink()
+    prompts_dir = project_root / ".ralph" / "prompts"
+    # interview.md moved into the ralph-interview skill
+    for name in ("next_story.md", "interview.md"):
+        path = prompts_dir / name
+        if path.exists():
+            path.unlink()
 
 
 def _upsert_claude_md(path: Path) -> bool:
@@ -99,36 +105,29 @@ def _upsert_claude_md(path: Path) -> bool:
 
 def _claude_md_section() -> str:
     return f"""{RALPH_CLAUDE_SECTION_START}
-## Ralph Workflow
+## Ralph
 
-When the user describes a new feature, project, refactor, or automation idea and `.ralph/prd.json` does not exist yet, switch into a Ralph requirements interview:
-
-- Read `.ralph/prompts/interview.md` before asking questions.
-- Use `AskUserQuestionTool`.
-- Ask exactly one question at a time.
-- After you have enough detail, write:
-  - `.ralph/prd.json`
-  - `.ralph/progress.txt`
-  - `.ralph/AGENT.md`
-  - `.ralphrc`
-- Keep stories small enough to complete in one implementation session per story.
-
-- After writing interview outputs, tell the user to start the autonomous loop with `ralph run`.
-
-If the user explicitly asks for the autonomous external Ralph loop, the shell commands are still available via the installed `ralph` CLI.
+Ralph (autonomous coding loop) is set up in this repo. To plan a new feature, invoke the `/ralph-interview` skill — it interviews the user one question at a time and creates `.ralph/prd.json` plus the other Ralph files. After the interview, the user starts the loop from the shell with `ralph run`.
 {RALPH_CLAUDE_SECTION_END}"""
 
 
 def _bootstrap_message_text() -> str:
     return (
-        "I want to start a Ralph-style requirements interview for this project. "
-        "Please read .ralph/prompts/interview.md, inspect the repository, then use "
-        "AskUserQuestionTool to ask me one question at a time. After the interview, "
-        "write .ralph/prd.json, .ralph/progress.txt, .ralph/AGENT.md, and .ralphrc."
+        "Start a Ralph requirements interview for this project: "
+        "invoke the /ralph-interview skill."
     )
 
 
-def _interview_prompt_text() -> str:
+def _interview_skill_text() -> str:
+    return f"""---
+name: ralph-interview
+description: Conduct a Ralph requirements interview — break a feature into small stories and create .ralph/prd.json, .ralph/progress.txt, .ralph/AGENT.md and .ralphrc for the autonomous loop. Use when the user wants to plan a feature for Ralph, asks for a Ralph interview, or describes work to prepare for `ralph run`.
+---
+
+{_interview_body_text()}"""
+
+
+def _interview_body_text() -> str:
     return """# Ralph Interview Flow
 
 You are conducting a Ralph requirements interview for this repository.
@@ -229,4 +228,5 @@ Required outputs:
 When done:
 - summarize the final plan briefly
 - stop asking questions
+- tell the user to start the autonomous loop from the shell with `ralph run`
 """
