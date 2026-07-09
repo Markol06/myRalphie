@@ -23,6 +23,7 @@ class ExecutionResult:
     duration_seconds: float
     timed_out: bool = False
     result_text: str = ""          # final assistant message from the result event
+    structured_output: dict | None = None  # validated --json-schema output
     cost_usd: float = 0.0
     input_tokens: int = 0          # includes cache creation/read tokens
     output_tokens: int = 0
@@ -113,6 +114,7 @@ def run_claude(
     dry_run: bool = False,
     model: str = "",
     max_turns: int = 0,
+    json_schema: str = "",
 ) -> ExecutionResult:
     """Spawn a fresh non-interactive Claude Code instance (stream-json output).
 
@@ -140,6 +142,8 @@ def run_claude(
         cmd.extend(["--model", model])
     if max_turns > 0:
         cmd.extend(["--max-turns", str(max_turns)])
+    if json_schema:
+        cmd.extend(["--json-schema", json_schema])
 
     start = time.time()
     transcript: list[str] = []
@@ -205,6 +209,10 @@ def run_claude(
         duration_seconds=duration,
         timed_out=timed_out,
         result_text=str(final.get("result") or ""),
+        structured_output=(
+            final["structured_output"]
+            if isinstance(final.get("structured_output"), dict) else None
+        ),
         cost_usd=float(final.get("total_cost_usd") or 0.0),
         input_tokens=total_input,
         output_tokens=int(usage.get("output_tokens") or 0),
