@@ -362,6 +362,33 @@ def log_cmd(story_id, project, list_all, output_only):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+@main.command()
+@click.option("--project", "-p", default=None)
+@click.option("--keep", default=10, show_default=True, help="Recent entries to keep verbatim")
+@click.option("--model", default="claude-haiku-4-5-20251001", show_default=True,
+              help="Model used for summarization")
+def compact(project, keep, model):
+    """Compress old progress.txt entries into a digest (memory management)."""
+    from functools import partial
+    from . import progress as prog
+    from .executor import run_claude_text
+
+    project_root = _resolve_project(project)
+    ralph_dir = _require_ralph_dir(project_root)
+    progress_path = ralph_dir / "progress.txt"
+    if not progress_path.exists():
+        console.print("[red]No progress.txt found.[/red]")
+        sys.exit(1)
+
+    console.print(f"[dim]Summarizing old entries with {model}...[/dim]")
+    summarize = partial(run_claude_text, cwd=project_root, model=model)
+    changed, message = prog.compact(progress_path, keep, summarize, project_root)
+    style = "green" if changed else "yellow"
+    console.print(f"[{style}]{message}[/{style}]")
+    sys.exit(0 if changed or "nothing to compact" in message else 1)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 @main.command(name="pr")
 @click.option("--project", "-p", default=None)
 @click.option("--draft", is_flag=True, help="Create as draft PR")
