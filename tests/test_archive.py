@@ -6,9 +6,10 @@ from ralph.archive import archive_run
 
 
 def _make_run(tmp_path: Path, all_done: bool = True) -> Path:
+    # exist_ok: archive_run recreates logs/, and repeated calls reuse the tree
     ralph_dir = tmp_path / ".ralph"
-    (ralph_dir / "logs").mkdir(parents=True)
-    (ralph_dir / "prompts").mkdir()
+    (ralph_dir / "logs").mkdir(parents=True, exist_ok=True)
+    (ralph_dir / "prompts").mkdir(exist_ok=True)
     (ralph_dir / "prompts" / "interview.md").write_text("keep me")
     (ralph_dir / "AGENT.md").write_text("conventions")
     (ralph_dir / "progress.txt").write_text("# log")
