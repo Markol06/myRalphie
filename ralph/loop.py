@@ -166,6 +166,7 @@ def run_loop(
     project_root: Path,
     config: RalphConfig,
     resume: bool = False,
+    until_done: bool = False,
 ) -> None:
     ralph_dir = project_root / ".ralph"
     prd_path = ralph_dir / "prd.json"
@@ -443,21 +444,32 @@ def run_loop(
     if not prd.all_done():
         stats = prd.stats()
         total_cost = cost_tracker.total_cost(cost_log_path)
+        next_step = (
+            "Continuing automatically ([bold]--until-done[/bold])"
+            if until_done
+            else "Continue with: [bold]ralph run --resume[/bold]"
+        )
         console.print(Panel(
             f"[bold yellow]⏸  Chunk {session.chunk_number} done[/bold yellow]\n\n"
             f"Progress: {stats['done']}/{stats['total']} stories complete\n"
             f"Remaining: {stats['pending']} stories, {stats['failed']} failed\n\n"
-            "Continue with: [bold]ralph run --resume[/bold]",
+            f"{next_step}",
             border_style="yellow",
         ))
-        session.status = "paused"
-        session.pause_reason = "chunk_done"
         notify(
             config,
             f"⏸ *{prd.project_name}* — chunk {session.chunk_number} done: "
             f"{stats['done']}/{stats['total']} stories, ${total_cost:.2f} spent. "
-            f"Continue with `ralph run --resume`.",
+            + ("Continuing automatically." if until_done
+               else "Continue with `ralph run --resume`."),
         )
+        if until_done:
+            # Roll straight into the next chunk; the resume path starts it.
+            # Budget limit and circuit breaker remain the stop conditions.
+            session.save(session_path)
+            return run_loop(project_root, config, resume=True, until_done=True)
+        session.status = "paused"
+        session.pause_reason = "chunk_done"
     else:
         console.print(Panel(
             "[bold green]🎉 All done! Project complete.[/bold green]",

@@ -66,8 +66,9 @@ def interview(project, dry_run):
 @click.option("--project", "-p", default=None, help="Path to project root (default: cwd)")
 @click.option("--resume", "-r", is_flag=True, help="Resume from last paused state")
 @click.option("--chunk-size", default=None, type=int, help="Override chunk size (default from config)")
+@click.option("--until-done", is_flag=True, help="Keep rolling into new chunks until all stories are done or a safeguard stops the run")
 @click.option("--dry-run", is_flag=True, help="Simulate without running claude")
-def run(project, resume, chunk_size, dry_run):
+def run(project, resume, chunk_size, until_done, dry_run):
     """Run a chunk of autonomous coding iterations (default: 5)."""
     from .loop import run_loop
 
@@ -88,12 +89,13 @@ def run(project, resume, chunk_size, dry_run):
     console.print(Panel(
         f"[bold]Starting Ralph Loop[/bold]\n\n"
         f"Project: [cyan]{project_root.name}[/cyan]\n"
-        f"Chunk size: [cyan]{config.chunk_size}[/cyan] iterations\n"
+        f"Chunk size: [cyan]{config.chunk_size}[/cyan] iterations"
+        + (" · [cyan]until done[/cyan]" if until_done else "") + "\n"
         f"Mode: {'[yellow]DRY RUN[/yellow]' if dry_run else '[green]LIVE[/green]'}",
         border_style="blue",
     ))
 
-    run_loop(project_root, config, resume=resume)
+    run_loop(project_root, config, resume=resume, until_done=until_done)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
