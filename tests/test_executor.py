@@ -25,7 +25,7 @@ def test_stream_line_collects_result_event():
 def test_stream_line_collects_assistant_text_and_tools():
     final: dict = {}
     transcript: list[str] = []
-    line = json_assistant = (
+    json_assistant = (
         '{"type": "assistant", "message": {"content": ['
         '{"type": "text", "text": "Working on it"},'
         '{"type": "tool_use", "name": "Bash"}]}}'
