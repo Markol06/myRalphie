@@ -484,9 +484,8 @@ def init(project):
         f"Created: [cyan].ralphrc[/cyan]\n"
         f"{created_lines}\n{detected_block}\n"
         "Next shell step: [bold]claude[/bold]\n"
-        "Then tell Claude what you want to build in plain language.\n"
-        "It will use the Ralph instructions from [cyan]CLAUDE.md[/cyan].\n"
-        "Or from shell: [bold]ralph interview[/bold]",
+        "Then run [bold]/ralph-interview[/bold] or just describe what you want to build.\n"
+        "Claude will create [cyan].ralph/prd.json[/cyan]; after that run [bold]ralph run[/bold].",
         border_style="green",
     ))
 
