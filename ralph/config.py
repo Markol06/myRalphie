@@ -29,6 +29,9 @@ class RalphConfig:
 
     # Budget — total cost.log spend at which the run pauses; 0 = unlimited
     max_cost_usd: float = 0.0
+    # Hard cap for a single iteration, enforced natively by the claude CLI
+    # (--max-budget-usd); 0 = unlimited
+    iteration_budget_usd: float = 0.0
 
     # Circuit breaker
     cb_no_progress_threshold: int = 3   # stop after N iters with no git change
