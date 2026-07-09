@@ -421,6 +421,18 @@ def reset_circuit(project):
 # ──────────────────────────────────────────────────────────────────────────────
 @main.command()
 @click.option("--project", "-p", default=None)
+@click.option("--run-tests", is_flag=True, help="Also execute test_command as part of the check")
+def doctor(project, run_tests):
+    """Validate the Ralph setup (claude binary, git, prd, config, notifications)."""
+    from .doctor import run_doctor
+
+    project_root = _resolve_project(project)
+    sys.exit(0 if run_doctor(project_root, run_tests=run_tests) else 1)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+@main.command()
+@click.option("--project", "-p", default=None)
 def init(project):
     """Initialize a new Ralph project (creates .ralph/ directory and .ralphrc)."""
     from .scaffold import ensure_claude_scaffold
