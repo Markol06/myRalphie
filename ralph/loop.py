@@ -247,7 +247,7 @@ def run_loop(
 
         # Execute
         commit_before = git_current_commit(project_root)
-        console.print(f"  [dim]Spawning fresh Claude Code instance...[/dim]")
+        console.print("  [dim]Spawning fresh Claude Code instance...[/dim]")
         result = run_claude(
             prompt=prompt,
             project_root=project_root,
@@ -382,7 +382,7 @@ def run_loop(
                     project_root / ".ralph" / "progress.txt",
                     story.id, story.title,
                     f"❌ FAILED attempt {retry_count}\nError: {failure_summary}\n"
-                    f"Test output:\n{(status.get('test_output', '') if status else error_snippet)[:500]}",
+                    f"Test output:\n{(status.get('test_output', '') if status else output[-500:])[:500]}",
                 )
 
         # Advance counters

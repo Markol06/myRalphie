@@ -225,7 +225,7 @@ def retry(story_id, project):
     prd.save(prd_path)
 
     # Reset circuit breaker too
-    from .circuit_breaker import CircuitBreaker, CircuitState
+    from .circuit_breaker import CircuitState
     cb_path = ralph_dir / "circuit_state.json"
     state = CircuitState()
     import json
@@ -301,7 +301,6 @@ def log_cmd(story_id, project, list_all, output_only):
     ralph log S001      -- show last log for story S001
     ralph log --list    -- list all logs
     """
-    import shutil
     from . import logger as iteration_logger
 
     project_root = _resolve_project(project)

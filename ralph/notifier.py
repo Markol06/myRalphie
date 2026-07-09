@@ -1,7 +1,6 @@
 """Webhook notifications — Discord and Telegram."""
 from __future__ import annotations
 
-import json
 import httpx
 
 
