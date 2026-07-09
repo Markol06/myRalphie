@@ -237,10 +237,9 @@ def run_loop(
     while not session.is_chunk_done(config.chunk_size):
         story = prd.next_story()
         if story is None:
+            # No pending stories left — the completion block below handles
+            # status and the single completion notification
             console.print("[bold green]✅ No more pending stories![/bold green]")
-            session.status = "complete"
-            session.save(session_path)
-            notify(config, f"✅ *{prd.project_name}* — all stories complete!")
             break
 
         # Budget check — the only safeguard that protects the wallet directly
@@ -439,6 +438,7 @@ def run_loop(
     # ──────────────────────────────────────────────
     if not prd.all_done():
         stats = prd.stats()
+        total_cost = cost_tracker.total_cost(cost_log_path)
         console.print(Panel(
             f"[bold yellow]⏸  Chunk {session.chunk_number} done[/bold yellow]\n\n"
             f"Progress: {stats['done']}/{stats['total']} stories complete\n"
@@ -448,6 +448,12 @@ def run_loop(
         ))
         session.status = "paused"
         session.pause_reason = "chunk_done"
+        notify(
+            config,
+            f"⏸ *{prd.project_name}* — chunk {session.chunk_number} done: "
+            f"{stats['done']}/{stats['total']} stories, ${total_cost:.2f} spent. "
+            f"Continue with `ralph run --resume`.",
+        )
     else:
         console.print(Panel(
             "[bold green]🎉 All done! Project complete.[/bold green]",
