@@ -69,7 +69,8 @@ ralph init
 claude
 ```
 
-Inside Claude Code, describe your feature in plain language. Claude should run the interview and create:
+Inside Claude Code, run `/ralph-interview` (or just describe your feature in
+plain language). Claude asks one question at a time and creates:
 - `.ralph/prd.json`
 - `.ralph/progress.txt`
 - `.ralph/AGENT.md`
@@ -92,6 +93,12 @@ ralph run --resume
 - Each iteration spawns a fresh non-interactive Claude Code instance with
   **full tool access** (`bypassPermissions`). Run Ralph only in repos where
   you accept that.
+- Each iteration is driven by the native `/goal` command: an independent
+  evaluator model re-checks the story's completion condition after every
+  turn and keeps the agent working until it holds (disable with
+  `use_goal: false`). Requires Claude Code >= 2.1.139.
+- The iteration status arrives as validated structured output
+  (`--json-schema`), not parsed text.
 - A story is marked done only after Ralph independently verifies the claim:
   a new commit must exist and the configured `test_command`, `lint_command`
   and `build_command` must pass when Ralph runs them itself.
@@ -137,7 +144,9 @@ ralph run --resume
   "model": "",
   "retry_model": "",
   "max_turns": 0,
+  "use_goal": true,
   "max_cost_usd": 0,
+  "iteration_budget_usd": 0,
   "test_command": "pytest -q",
   "lint_command": "ruff check .",
   "build_command": "",
@@ -150,8 +159,12 @@ ralph run --resume
 - `retry_model` — stronger model for retries (e.g. `claude-opus-4-8`); empty
   keeps using `model`.
 - `max_turns` — cap on agent turns per iteration; `0` means unlimited.
+- `use_goal` — drive each iteration with `/goal` so an independent evaluator
+  pushes the agent until the story's completion condition holds.
 - `max_cost_usd` — pause the run when total spend in `cost.log` reaches this
   amount; `0` means unlimited. Recommended for `--until-done` runs.
+- `iteration_budget_usd` — hard cap for a single iteration, enforced by the
+  claude CLI itself (`--max-budget-usd`); `0` means unlimited.
 - `test_command` / `lint_command` / `build_command` are auto-detected by
   `ralph init` where possible and all run during PASS verification.
 - `ralph init` also adds `.ralph/` and `.ralphrc` to the target project's
@@ -160,13 +173,16 @@ ralph run --resume
 ## Files Created by `ralph init`
 
 ```text
+.claude/
+  skills/
+    ralph-interview/
+      SKILL.md          # the /ralph-interview skill (interview instructions)
 .ralph/
   prompts/
-    interview.md
     bootstrap_message.txt
   logs/
 .ralphrc
-CLAUDE.md
+CLAUDE.md               # short pointer to /ralph-interview and ralph run
 ```
 
 ## Telegram Integration
