@@ -222,6 +222,27 @@ def run_loop(
             notify(config, f"✅ *{prd.project_name}* — all stories complete!")
             break
 
+        # Budget check — the only safeguard that protects the wallet directly
+        if config.max_cost_usd > 0:
+            spent = cost_tracker.total_cost(cost_log_path)
+            if spent >= config.max_cost_usd:
+                console.print(Panel(
+                    f"[bold red]💸 Budget limit reached[/bold red]\n\n"
+                    f"Spent ${spent:.2f} of max ${config.max_cost_usd:.2f}\n\n"
+                    "Raise max_cost_usd in .ralphrc (or archive cost.log) and run "
+                    "[bold]ralph run --resume[/bold]",
+                    border_style="red",
+                ))
+                session.status = "paused"
+                session.pause_reason = f"budget_limit: ${spent:.2f} >= ${config.max_cost_usd:.2f}"
+                session.save(session_path)
+                notify(
+                    config,
+                    f"💸 *{prd.project_name}* — budget limit reached: "
+                    f"${spent:.2f} of ${config.max_cost_usd:.2f}. Run paused.",
+                )
+                return
+
         # Circuit breaker check
         should_stop, reason = cb.should_open()
         if should_stop:
