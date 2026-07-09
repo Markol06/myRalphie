@@ -291,7 +291,12 @@ def run_loop(
         # Build prompt
         prompt = _build_iteration_prompt(story, config, project_root)
 
-        # Execute
+        # Execute — escalate to retry_model after a failed first attempt
+        model = config.model
+        if story.retries > 0 and config.retry_model:
+            model = config.retry_model
+            console.print(f"  [dim]Retry {story.retries} — escalating to {model}[/dim]")
+
         commit_before = git_current_commit(project_root)
         console.print("  [dim]Spawning fresh Claude Code instance...[/dim]")
         result = run_claude(
@@ -299,7 +304,7 @@ def run_loop(
             project_root=project_root,
             timeout_seconds=config.claude_timeout,
             dry_run=config.dry_run,
-            model=config.model,
+            model=model,
             max_turns=config.max_turns,
         )
 
