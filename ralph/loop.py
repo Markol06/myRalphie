@@ -99,7 +99,7 @@ def _build_iteration_prompt(
     )
 
 
-VERIFY_TEST_TIMEOUT = 600  # seconds for the independent test run after a claimed PASS
+VERIFY_COMMAND_TIMEOUT = 600  # seconds per verification command after a claimed PASS
 
 
 def _ensure_run_branch(project_root: Path, branch: str, base: str) -> tuple[bool, str]:
@@ -121,19 +121,26 @@ def _ensure_run_branch(project_root: Path, branch: str, base: str) -> tuple[bool
 def _verify_pass(
     project_root: Path, config: RalphConfig, commit_before: str
 ) -> tuple[bool, str]:
-    """Independently verify a claimed PASS: new commit exists, tests pass."""
+    """Independently verify a claimed PASS: new commit exists, tests/lint/build pass."""
     commit_after = git_current_commit(project_root)
     if commit_after == commit_before:
         return False, "claimed PASS but produced no new commit"
 
-    if config.test_command:
-        console.print(f"  [dim]Verifying: {config.test_command}[/dim]")
-        r = run_command(config.test_command, project_root, timeout=VERIFY_TEST_TIMEOUT)
+    checks = [
+        ("tests", config.test_command),
+        ("lint", config.lint_command),
+        ("build", config.build_command),
+    ]
+    for label, command in checks:
+        if not command:
+            continue
+        console.print(f"  [dim]Verifying {label}: {command}[/dim]")
+        r = run_command(command, project_root, timeout=VERIFY_COMMAND_TIMEOUT)
         if r.timed_out:
-            return False, f"verification test run timed out after {VERIFY_TEST_TIMEOUT}s"
+            return False, f"verification {label} run timed out after {VERIFY_COMMAND_TIMEOUT}s"
         if r.returncode != 0:
             tail = (r.stdout + "\n" + r.stderr).strip()[-500:]
-            return False, f"claimed PASS but verification tests failed:\n{tail}"
+            return False, f"claimed PASS but verification {label} failed:\n{tail}"
 
     return True, ""
 
