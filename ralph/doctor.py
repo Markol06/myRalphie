@@ -10,8 +10,8 @@ from rich.console import Console
 from rich.table import Table
 
 from .config import RalphConfig
-from .prd import PRD
 from .executor import find_claude, run_command
+from .prd import PRD
 
 console = Console()
 
@@ -30,10 +30,11 @@ def _check_claude() -> tuple[str, str]:
         r = subprocess.run(
             [claude_bin, "--version"],
             capture_output=True, text=True, timeout=30,
+            check=False,
         )
         version = r.stdout.strip() or r.stderr.strip()
         return OK, f"{claude_bin} ({version})"
-    except Exception as e:
+    except (OSError, subprocess.SubprocessError) as e:
         return FAIL, f"claude --version failed: {e}"
 
 
@@ -41,6 +42,7 @@ def _check_git(project_root: Path) -> tuple[str, str]:
     r = subprocess.run(
         ["git", "rev-parse", "--is-inside-work-tree"],
         cwd=project_root, capture_output=True, text=True, timeout=10,
+        check=False,
     )
     if r.returncode != 0:
         return FAIL, "not a git repository — run git init"

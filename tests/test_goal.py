@@ -1,14 +1,14 @@
 """Tests for the /goal condition builder."""
 from ralph.config import RalphConfig
-from ralph.loop import _build_goal_condition, _GOAL_MAX_CHARS
+from ralph.loop import _GOAL_MAX_CHARS, _build_goal_condition
 from ralph.prd import Story
 
 
 def _story(**kwargs) -> Story:
-    defaults = dict(
-        id="S001", title="Login endpoint", description="d",
-        acceptance_criteria=["POST /login returns a JWT", "invalid creds return 401"],
-    )
+    defaults = {
+        "id": "S001", "title": "Login endpoint", "description": "d",
+        "acceptance_criteria": ["POST /login returns a JWT", "invalid creds return 401"],
+    }
     defaults.update(kwargs)
     return Story(**defaults)
 

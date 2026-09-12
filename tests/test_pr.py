@@ -1,9 +1,8 @@
 """Tests for PR body generation."""
 from pathlib import Path
 
-from ralph.pr import build_pr_body, _story_summaries
+from ralph.pr import _story_summaries, build_pr_body
 from ralph.prd import PRD, Story
-
 
 PROGRESS = """# Ralph Progress Log
 

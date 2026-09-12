@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 # Secrets are preferably taken from the environment, not .ralphrc
@@ -55,7 +55,7 @@ class RalphConfig:
     dry_run: bool = False
 
     @classmethod
-    def load(cls, project_root: Path, apply_env: bool = True) -> "RalphConfig":
+    def load(cls, project_root: Path, apply_env: bool = True) -> RalphConfig:
         """Load .ralphrc; set apply_env=False when the result will be saved
         back, so env-provided secrets never get written to the file."""
         rc_file = project_root / ".ralphrc"

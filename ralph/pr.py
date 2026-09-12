@@ -8,10 +8,10 @@ from pathlib import Path
 
 from rich.console import Console
 
-from .config import RalphConfig
-from .prd import PRD
 from . import cost_tracker
 from . import progress as prog
+from .config import RalphConfig
+from .prd import PRD
 
 console = Console()
 
@@ -76,6 +76,7 @@ def create_pr(project_root: Path, draft: bool = False) -> bool:
     push = subprocess.run(
         ["git", "push", "-u", "origin", prd.branch_name],
         cwd=project_root, capture_output=True, text=True, timeout=120,
+        check=False,
     )
     if push.returncode != 0:
         console.print(f"[red]git push failed:[/red]\n{push.stderr.strip()}")
@@ -94,7 +95,7 @@ def create_pr(project_root: Path, draft: bool = False) -> bool:
     if draft:
         cmd.append("--draft")
 
-    r = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True, timeout=120)
+    r = subprocess.run(cmd, cwd=project_root, capture_output=True, text=True, timeout=120, check=False)
     if r.returncode != 0:
         console.print(f"[red]gh pr create failed:[/red]\n{r.stderr.strip()}")
         return False

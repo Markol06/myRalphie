@@ -1,5 +1,5 @@
 """Tests for executor helpers (no real claude process involved)."""
-from ralph.executor import _to_text, _handle_stream_line
+from ralph.executor import _handle_stream_line, _to_text
 
 
 def test_to_text_handles_str_bytes_and_none():

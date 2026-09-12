@@ -10,18 +10,23 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from .config import RalphConfig
-from .prd import PRD
-from .session import Session
-from .circuit_breaker import CircuitBreaker
-from . import progress as prog
 from . import cost_tracker
+from . import logger as iteration_logger
+from . import progress as prog
+from .circuit_breaker import CircuitBreaker
+from .config import RalphConfig
 from .executor import (
-    run_claude, run_command, git_current_commit,
-    git_current_branch, git_create_branch, git_checkout, git_dirty_files,
+    git_checkout,
+    git_create_branch,
+    git_current_branch,
+    git_current_commit,
+    git_dirty_files,
+    run_claude,
+    run_command,
 )
 from .notifier import notify
-from . import logger as iteration_logger
+from .prd import PRD
+from .session import Session
 
 console = Console()
 
@@ -101,9 +106,10 @@ def _build_iteration_prompt(
         result = subprocess.run(
             ["git", "log", "--oneline", "-15"],
             cwd=project_root, capture_output=True, text=True, timeout=10,
+            check=False,
         )
         git_log = result.stdout.strip() or "(no commits yet)"
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         git_log = "(could not read git log)"
 
     criteria_text = "\n".join(f"- {c}" for c in story.acceptance_criteria)
@@ -142,8 +148,10 @@ def _build_goal_condition(story, config: RalphConfig) -> str:
     after every turn, so it must be demonstrable from the transcript."""
     criteria = "; ".join(story.acceptance_criteria) or "the story description is implemented"
     parts = [
-        f'Story {story.id} "{story.title}" is fully implemented. '
-        f"All acceptance criteria demonstrably hold: {criteria}."
+        (
+            f'Story {story.id} "{story.title}" is fully implemented. '
+            f"All acceptance criteria demonstrably hold: {criteria}."
+        )
     ]
     if config.test_command:
         parts.append(f"`{config.test_command}` was run and exited 0 (show the output).")

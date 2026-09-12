@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 RALPH_CLAUDE_SECTION_START = "<!-- RALPH_CLAUDE_START -->"
 RALPH_CLAUDE_SECTION_END = "<!-- RALPH_CLAUDE_END -->"
 

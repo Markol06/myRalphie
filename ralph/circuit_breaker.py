@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from dataclasses import dataclass, asdict
 
 
 @dataclass
@@ -15,7 +15,7 @@ class CircuitState:
     last_commit: str = ""
 
     @classmethod
-    def load(cls, path: Path) -> "CircuitState":
+    def load(cls, path: Path) -> CircuitState:
         if not path.exists():
             return cls()
         with open(path) as f:
@@ -47,9 +47,10 @@ class CircuitBreaker:
                 ["git", "rev-parse", "HEAD"],
                 cwd=self.project_root,
                 capture_output=True, text=True, timeout=10,
+                check=False,
             )
             return result.stdout.strip()
-        except Exception:
+        except (OSError, subprocess.SubprocessError):
             return ""
 
     def record_success(self) -> None:

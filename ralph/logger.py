@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
 def _log_path(logs_dir: Path, story_id: str, chunk: int, iteration: int) -> Path:
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S")
     return logs_dir / f"{ts}_chunk{chunk}_iter{iteration}_{story_id}.log"
 
 
@@ -34,7 +34,7 @@ def save(
         "result": result,
         "duration_seconds": round(duration, 1),
         "cost_usd": cost_usd,
-        "timestamp": datetime.now().isoformat(),
+        "timestamp": datetime.now(tz=timezone.utc).isoformat(),
     }
 
     content = (

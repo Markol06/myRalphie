@@ -3,7 +3,6 @@ from pathlib import Path
 
 from ralph import progress as prog
 
-
 SAMPLE = """# Ralph Progress Log
 # This file is read by every new Claude Code instance.
 
@@ -34,7 +33,7 @@ def test_split_entries():
 
 
 def test_split_entries_no_entries():
-    header, entries = prog.split_entries("# Just a header\n")
+    _header, entries = prog.split_entries("# Just a header\n")
     assert entries == []
 
 
@@ -42,7 +41,7 @@ def test_compact_keeps_recent_and_digests_old(tmp_path: Path):
     path = tmp_path / "progress.txt"
     path.write_text(SAMPLE, encoding="utf-8")
 
-    changed, message = prog.compact(
+    changed, _message = prog.compact(
         path, keep=2, summarize=lambda prompt: "- digest of old learnings",
         project_root=tmp_path,
     )
@@ -68,7 +67,7 @@ def test_compact_noop_when_few_entries(tmp_path: Path):
 def test_compact_aborts_when_summarize_fails(tmp_path: Path):
     path = tmp_path / "progress.txt"
     path.write_text(SAMPLE, encoding="utf-8")
-    changed, message = prog.compact(
+    changed, _message = prog.compact(
         path, keep=1, summarize=lambda prompt: None, project_root=tmp_path,
     )
     assert not changed

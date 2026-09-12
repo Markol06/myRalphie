@@ -29,7 +29,7 @@ def _make_run(tmp_path: Path, all_done: bool = True) -> Path:
 
 def test_archive_moves_run_state(tmp_path: Path):
     ralph_dir = _make_run(tmp_path)
-    archived, message = archive_run(tmp_path)
+    archived, _message = archive_run(tmp_path)
     assert archived
 
     history = list((ralph_dir / "history").iterdir())
