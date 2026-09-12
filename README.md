@@ -101,7 +101,10 @@ ralph run --resume
   (`--json-schema`), not parsed text.
 - A story is marked done only after Ralph independently verifies the claim:
   a new commit must exist and the configured `test_command`, `lint_command`
-  and `build_command` must pass when Ralph runs them itself.
+  and `build_command` must pass when Ralph runs them itself. Then a separate,
+  cheaper model (`verify_model`) reads the story's diff against the acceptance
+  criteria and can veto the PASS; a veto counts as a failed attempt and its
+  reason feeds the retry.
 - Cost and token usage come from Claude Code's structured `stream-json`
   output and are logged per iteration to `.ralph/cost.log`.
 - Safeguards that pause the run: circuit breaker (no git progress / same
@@ -144,6 +147,8 @@ ralph run --resume
   "model": "",
   "retry_model": "",
   "max_turns": 0,
+  "verify_model": "claude-sonnet-5",
+  "verify_timeout": 300,
   "use_goal": true,
   "max_cost_usd": 0,
   "iteration_budget_usd": 0,
@@ -159,6 +164,10 @@ ralph run --resume
 - `retry_model` — stronger model for retries (e.g. `claude-opus-4-8`); empty
   keeps using `model`.
 - `max_turns` — cap on agent turns per iteration; `0` means unlimited.
+- `verify_model` — separate model that judges the story's diff against the
+  acceptance criteria after the deterministic checks (default
+  `claude-sonnet-5`, use `claude-haiku-4-5` for the cheapest check); empty
+  string disables the LLM verifier. `verify_timeout` caps that call in seconds.
 - `use_goal` — drive each iteration with `/goal` so an independent evaluator
   pushes the agent until the story's completion condition holds.
 - `max_cost_usd` — pause the run when total spend in `cost.log` reaches this

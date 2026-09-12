@@ -20,12 +20,14 @@ from .executor import (
     git_create_branch,
     git_current_branch,
     git_current_commit,
+    git_diff_since,
     git_dirty_files,
     run_claude,
+    run_claude_text,
     run_command,
 )
 from .notifier import notify
-from .prd import PRD
+from .prd import PRD, Story
 from .session import Session
 
 console = Console()
@@ -181,10 +183,81 @@ def _ensure_run_branch(project_root: Path, branch: str, base: str) -> tuple[bool
     return False, f"could not checkout or create branch '{branch}' from '{base}'"
 
 
-def _verify_pass(
-    project_root: Path, config: RalphConfig, commit_before: str
+_VERIFY_PROMPT = """You are an independent verifier for an autonomous coding loop. Another model \
+claims it completed the story below. Judge ONLY from the diff: does the change \
+implement every acceptance criterion, without breaking or bypassing existing behaviour \
+(deleted or skipped tests, hard-coded outputs, unrelated modules edited)? Be strict: a \
+missing criterion or a suspicious shortcut is a FAIL. Do not praise; a single unmet \
+criterion is enough.
+
+Story {story_id}: {story_title}
+{story_description}
+
+Acceptance criteria:
+{criteria}
+
+Diff (base..HEAD):
+```
+{diff}
+```
+
+Answer with exactly two lines:
+VERDICT: PASS or FAIL
+REASON: one sentence naming the unmet criterion or shortcut (or "all criteria implemented")"""
+
+
+def _verify_prompt(story: Story, diff: str) -> str:
+    criteria = "\n".join(f"- {c}" for c in story.acceptance_criteria) or "- (none listed)"
+    return _VERIFY_PROMPT.format(
+        story_id=story.id,
+        story_title=story.title,
+        story_description=story.description,
+        criteria=criteria,
+        diff=diff or "(empty diff)",
+    )
+
+
+def _parse_verdict(text: str | None) -> tuple[bool | None, str]:
+    """(passed, reason) from the verifier's answer; passed=None when unreadable."""
+    if not text:
+        return None, "verifier gave no answer"
+    verdict = re.search(r"VERDICT:\s*(PASS|FAIL)", text, re.IGNORECASE)
+    if not verdict:
+        return None, "verifier answer had no VERDICT line"
+    reason_match = re.search(r"REASON:\s*(.+)", text)
+    reason = reason_match.group(1).strip() if reason_match else text.strip()[:300]
+    return verdict.group(1).upper() == "PASS", reason
+
+
+def _llm_verify(
+    project_root: Path, config: RalphConfig, commit_before: str, story: Story
 ) -> tuple[bool, str]:
-    """Independently verify a claimed PASS: new commit exists, tests/lint/build pass."""
+    """A separate model reads the story's diff and can veto the PASS.
+
+    A verifier that cannot answer does not block the story: the deterministic
+    checks already passed, so the outcome is a warning, not a failure.
+    """
+    diff = git_diff_since(project_root, commit_before)
+    console.print(f"  [dim]Verifying story with {config.verify_model}...[/dim]")
+    answer = run_claude_text(
+        _verify_prompt(story, diff), project_root,
+        model=config.verify_model, timeout=config.verify_timeout,
+    )
+    passed, reason = _parse_verdict(answer)
+    if passed is None:
+        console.print(f"  [yellow]⚠️  {reason}; keeping the deterministic result[/yellow]")
+        return True, ""
+    if not passed:
+        return False, f"verifier ({config.verify_model}) rejected the story: {reason}"
+    return True, ""
+
+
+def _verify_pass(
+    project_root: Path, config: RalphConfig, commit_before: str,
+    story: Story | None = None,
+) -> tuple[bool, str]:
+    """Independently verify a claimed PASS: new commit, tests/lint/build, then a
+    separate model reads the diff against the acceptance criteria."""
     commit_after = git_current_commit(project_root)
     if commit_after == commit_before:
         return False, "claimed PASS but produced no new commit"
@@ -204,6 +277,9 @@ def _verify_pass(
         if r.returncode != 0:
             tail = (r.stdout + "\n" + r.stderr).strip()[-500:]
             return False, f"claimed PASS but verification {label} failed:\n{tail}"
+
+    if config.verify_model and story is not None:
+        return _llm_verify(project_root, config, commit_before, story)
 
     return True, ""
 
@@ -438,7 +514,9 @@ def run_loop(
         # Don't trust the self-reported PASS — verify commit + tests independently
         verify_reason = ""
         if is_pass and not config.dry_run:
-            verified, verify_reason = _verify_pass(project_root, config, commit_before)
+            verified, verify_reason = _verify_pass(
+                project_root, config, commit_before, story
+            )
             if not verified:
                 console.print(f"  [yellow]⚠️  PASS not verified: {verify_reason}[/yellow]")
                 is_pass = False

@@ -283,6 +283,20 @@ def git_current_commit(project_root: Path) -> str:
     return r.stdout.strip()
 
 
+def git_diff_since(project_root: Path, base_commit: str, max_chars: int = 60000) -> str:
+    """Unified diff from base_commit to HEAD, truncated to max_chars."""
+    r = subprocess.run(
+        ["git", "diff", "--no-color", "--stat", "-p", f"{base_commit}..HEAD"],
+        cwd=project_root, capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=30,
+        check=False,
+    )
+    diff = r.stdout
+    if len(diff) > max_chars:
+        return diff[:max_chars] + f"\n... [diff truncated, {len(diff) - max_chars} more chars]"
+    return diff
+
+
 def git_commit_message(project_root: Path, message: str) -> bool:
     subprocess.run(["git", "add", "-A"], cwd=project_root, timeout=30, check=False)
     r = subprocess.run(
