@@ -25,6 +25,10 @@ class RalphConfig:
     model: str = ""               # e.g. "claude-sonnet-5"; empty = account default
     retry_model: str = ""         # stronger model for retries (e.g. "claude-opus-4-8"); empty = same as model
     max_turns: int = 0            # cap agent turns per iteration; 0 = unlimited
+    # Independent verifier: a separate (cheap) model reads the story's diff after
+    # the deterministic checks and can veto the PASS; empty = deterministic only
+    verify_model: str = "claude-sonnet-5"
+    verify_timeout: int = 300     # seconds for the verifier call
     use_goal: bool = True         # drive each iteration with /goal (independent per-turn evaluator)
 
     # Budget — total cost.log spend at which the run pauses; 0 = unlimited
