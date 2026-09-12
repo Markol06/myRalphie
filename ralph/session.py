@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
+from datetime import datetime, timezone
 from pathlib import Path
-from datetime import datetime
 
 
 @dataclass
@@ -19,17 +19,17 @@ class Session:
     pause_reason: str = ""            # why we paused (test_failure, chunk_done, etc.)
 
     @classmethod
-    def load(cls, path: Path) -> "Session":
+    def load(cls, path: Path) -> Session:
         if not path.exists():
             s = cls()
-            s.started_at = datetime.now().isoformat()
+            s.started_at = datetime.now(tz=timezone.utc).isoformat()
             return s
         with open(path) as f:
             d = json.load(f)
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
     def save(self, path: Path) -> None:
-        self.last_updated = datetime.now().isoformat()
+        self.last_updated = datetime.now(tz=timezone.utc).isoformat()
         with open(path, "w") as f:
             json.dump(asdict(self), f, indent=2)
 

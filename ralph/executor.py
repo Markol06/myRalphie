@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 import json
+import shutil
 import subprocess
+import sys
 import threading
 import time
-import sys
-import shutil
-from pathlib import Path
 from dataclasses import dataclass
+from pathlib import Path
 
 from rich.console import Console
 
@@ -72,6 +72,7 @@ def run_claude_text(
             encoding="utf-8",
             errors="replace",
             timeout=timeout,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         return None
@@ -174,8 +175,7 @@ def run_claude(
 
     def _consume_stderr() -> None:
         assert proc.stderr is not None
-        for line in proc.stderr:
-            stderr_chunks.append(line)
+        stderr_chunks.extend(proc.stderr)
 
     out_thread = threading.Thread(target=_consume_stdout, daemon=True)
     err_thread = threading.Thread(target=_consume_stderr, daemon=True)
@@ -237,6 +237,7 @@ def run_command(cmd: str, project_root: Path, timeout: int = 120) -> ExecutionRe
             capture_output=True,
             text=True,
             timeout=timeout,
+            check=False,
         )
         return ExecutionResult(
             returncode=proc.returncode,
@@ -259,6 +260,7 @@ def git_dirty_files(project_root: Path) -> list[str]:
     r = subprocess.run(
         ["git", "status", "--porcelain"],
         cwd=project_root, capture_output=True, text=True, timeout=10,
+        check=False,
     )
     return [line for line in r.stdout.splitlines() if line.strip()]
 
@@ -267,6 +269,7 @@ def git_current_branch(project_root: Path) -> str:
     r = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=project_root, capture_output=True, text=True, timeout=10,
+        check=False,
     )
     return r.stdout.strip()
 
@@ -275,15 +278,17 @@ def git_current_commit(project_root: Path) -> str:
     r = subprocess.run(
         ["git", "rev-parse", "HEAD"],
         cwd=project_root, capture_output=True, text=True, timeout=10,
+        check=False,
     )
     return r.stdout.strip()
 
 
 def git_commit_message(project_root: Path, message: str) -> bool:
-    subprocess.run(["git", "add", "-A"], cwd=project_root, timeout=30)
+    subprocess.run(["git", "add", "-A"], cwd=project_root, timeout=30, check=False)
     r = subprocess.run(
         ["git", "commit", "-m", message],
         cwd=project_root, capture_output=True, text=True, timeout=30,
+        check=False,
     )
     return r.returncode == 0
 
@@ -292,6 +297,7 @@ def git_create_branch(project_root: Path, branch_name: str, base: str = "main") 
     r = subprocess.run(
         ["git", "checkout", "-b", branch_name, base],
         cwd=project_root, capture_output=True, text=True, timeout=30,
+        check=False,
     )
     return r.returncode == 0
 
@@ -300,5 +306,6 @@ def git_checkout(project_root: Path, branch: str) -> bool:
     r = subprocess.run(
         ["git", "checkout", branch],
         cwd=project_root, capture_output=True, text=True, timeout=30,
+        check=False,
     )
     return r.returncode == 0

@@ -6,13 +6,13 @@ from pathlib import Path
 
 import click
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
+from rich.table import Table
 
+from . import cost_tracker
 from .config import RalphConfig
 from .prd import PRD
 from .session import Session
-from . import cost_tracker
 
 console = Console()
 
@@ -370,6 +370,7 @@ def log_cmd(story_id, project, list_all, output_only):
 def compact(project, keep, model):
     """Compress old progress.txt entries into a digest (memory management)."""
     from functools import partial
+
     from . import progress as prog
     from .executor import run_claude_text
 
@@ -452,8 +453,8 @@ def doctor(project, run_tests):
 @click.option("--project", "-p", default=None)
 def init(project):
     """Initialize a new Ralph project (creates .ralph/ directory and .ralphrc)."""
-    from .scaffold import ensure_claude_scaffold
     from .detect import detect_commands
+    from .scaffold import ensure_claude_scaffold
 
     project_root = _resolve_project(project)
     ralph_dir = project_root / ".ralph"

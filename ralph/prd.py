@@ -2,9 +2,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
 
 
 @dataclass
@@ -21,7 +20,7 @@ class Story:
     notes: str = ""                   # learnings written after each attempt
 
     @classmethod
-    def from_dict(cls, d: dict) -> "Story":
+    def from_dict(cls, d: dict) -> Story:
         return cls(**{k: v for k, v in d.items() if k in cls.__dataclass_fields__})
 
 
@@ -36,7 +35,7 @@ class PRD:
     # persistence
     # ──────────────────────────────────────────────
     @classmethod
-    def load(cls, path: Path) -> "PRD":
+    def load(cls, path: Path) -> PRD:
         with open(path) as f:
             d = json.load(f)
         stories = [Story.from_dict(s) for s in d.pop("stories", [])]
@@ -50,7 +49,7 @@ class PRD:
     # ──────────────────────────────────────────────
     # queries
     # ──────────────────────────────────────────────
-    def next_story(self) -> Optional[Story]:
+    def next_story(self) -> Story | None:
         """First story that is not done and not permanently failed."""
         for s in self.stories:
             if not s.passes and not s.failed:
@@ -92,7 +91,7 @@ class PRD:
                 return s.retries
         return 0
 
-    def get(self, story_id: str) -> Optional[Story]:
+    def get(self, story_id: str) -> Story | None:
         for s in self.stories:
             if s.id == story_id:
                 return s

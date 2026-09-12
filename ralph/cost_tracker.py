@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 import csv
+from datetime import datetime, timezone
 from pathlib import Path
-from datetime import datetime
 
 
 def log(
@@ -27,7 +27,7 @@ def log(
         if is_new:
             writer.writeheader()
         writer.writerow({
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
             "chunk": chunk,
             "iteration": iteration,
             "story_id": story_id,

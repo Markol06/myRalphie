@@ -1,8 +1,7 @@
 """Tests for RALPH_STATUS parsing in ralph.loop."""
 import json
 
-from ralph.loop import _parse_ralph_status, _status_from_structured, STATUS_SCHEMA
-
+from ralph.loop import STATUS_SCHEMA, _parse_ralph_status, _status_from_structured
 
 SAMPLE_PASS = """
 Implemented the feature and ran tests.

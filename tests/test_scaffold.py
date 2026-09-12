@@ -2,9 +2,9 @@
 from pathlib import Path
 
 from ralph.scaffold import (
-    ensure_claude_scaffold,
-    RALPH_CLAUDE_SECTION_START,
     RALPH_CLAUDE_SECTION_END,
+    RALPH_CLAUDE_SECTION_START,
+    ensure_claude_scaffold,
 )
 
 

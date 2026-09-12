@@ -1,9 +1,8 @@
 """Append-only progress.txt — the memory between Claude instances."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-
 
 HEADER = """# Ralph Progress Log
 # This file is read by every new Claude Code instance.
@@ -18,7 +17,7 @@ def init(path: Path) -> None:
 
 
 def append(path: Path, story_id: str, story_title: str, content: str) -> None:
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
     entry = f"\n## [{ts}] Story {story_id}: {story_title}\n{content.strip()}\n"
     with open(path, "a", encoding="utf-8") as f:
         f.write(entry)
@@ -89,7 +88,7 @@ def compact(
         return False, "claude summarization call failed — progress.txt left untouched"
 
     path.with_suffix(".txt.bak").write_text(text, encoding="utf-8")
-    ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+    ts = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M")
     new_text = (
         f"{header}\n"
         f"\n## [{ts}] COMPACTED digest of {len(old_entries)} earlier entries\n"

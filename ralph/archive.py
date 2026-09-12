@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .prd import PRD
@@ -44,7 +44,7 @@ def archive_run(project_root: Path, force: bool = False) -> tuple[bool, str]:
             "use --force to archive anyway"
         )
 
-    name = f"{datetime.now().strftime('%Y-%m-%d')}-{_slug(prd.project_name)}"
+    name = f"{datetime.now(tz=timezone.utc).strftime('%Y-%m-%d')}-{_slug(prd.project_name)}"
     dest = ralph_dir / "history" / name
     counter = 2
     while dest.exists():

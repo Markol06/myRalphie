@@ -8,7 +8,7 @@ def _post(url: str, payload: dict) -> bool:
     try:
         r = httpx.post(url, json=payload, timeout=10)
         return r.status_code in (200, 204)
-    except Exception:
+    except (OSError, httpx.HTTPError):
         return False
 
 
